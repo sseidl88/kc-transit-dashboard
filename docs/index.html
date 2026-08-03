@@ -1,0 +1,315 @@
+<title>KC Transit Service Dashboard</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Daily-refreshed scheduled-service dashboard for KCATA/RideKC routes, built from KCATA's public GTFS feed.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="style.css">
+
+<div class="wrap">
+  <header class="top">
+    <h1>KC Transit Service Dashboard</h1>
+    <p class="sub">
+      Scheduled-service metrics for KCATA/RideKC routes, derived daily from KCATA's public GTFS feed —
+      frequency, span of service, and coverage across the network. KCATA does not publish an open
+      real-time or ridership API, so this tracks <em>scheduled</em> service, not live on-time performance.
+      See the note in the footer.
+    </p>
+    <div class="updated" id="updated-line">Loading…</div>
+  </header>
+
+  <section id="stats">
+    <div class="stat-row" id="stat-row"></div>
+  </section>
+
+  <section id="map-section">
+    <h2>Route network</h2>
+    <p class="section-note">Every weekday route drawn from its scheduled shape, colored by how frequently it runs.</p>
+    <div id="map"></div>
+    <div class="legend-row" id="legend-row"></div>
+  </section>
+
+  <section id="trending-section">
+    <h2>What changed since our last check</h2>
+    <p class="section-note">
+      KCATA revises schedules a few times a year, not daily — most days this will be empty.
+      It only fills in when a real schedule change is detected in the feed.
+    </p>
+    <div class="trend-cols">
+      <div class="trend-col">
+        <h3>Service increased</h3>
+        <div id="trend-up"></div>
+      </div>
+      <div class="trend-col">
+        <h3>Service decreased</h3>
+        <div id="trend-down"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="table-section">
+    <h2>All routes</h2>
+    <p class="section-note">Click a column header to sort.</p>
+    <div class="table-card">
+      <table class="routes" id="routes-table">
+        <thead>
+          <tr>
+            <th data-key="route_short_name">Route</th>
+            <th data-key="route_long_name">Name</th>
+            <th data-key="route_type">Type</th>
+            <th class="num" data-key="trips_weekday">Weekday trips</th>
+            <th class="num" data-key="headway_minutes">Headway (min)</th>
+            <th data-key="span_start">Span</th>
+            <th class="num" data-key="stop_count">Stops</th>
+            <th class="num" data-key="route_length_miles">Length (mi)</th>
+          </tr>
+        </thead>
+        <tbody id="routes-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="compare-section">
+    <h2>Compare two routes</h2>
+    <p class="section-note">Same idea as a player comparison — pick two routes and see how their scheduled service stacks up.</p>
+    <div class="compare-picker">
+      <select id="route-a"></select>
+      <select id="route-b"></select>
+    </div>
+    <div class="compare-grid" id="compare-grid"></div>
+  </section>
+
+  <footer>
+    <p>
+      Data: <a href="https://ridekc.org/kcata/" target="_blank" rel="noopener">KCATA</a> public GTFS static feed,
+      pulled daily via GitHub Actions. KCATA's real-time feed and official ridership / on-time-performance
+      figures are not published as an open API (real-time requires a Swiftly-authenticated key; ridership/OTP
+      are monthly PDF reports) — so every metric here is <em>scheduled</em> service computed from the schedule
+      itself, not a live measurement.
+      Source: <a href="https://github.com/sseidl88/kc-transit-dashboard" target="_blank" rel="noopener">GitHub</a>.
+    </p>
+  </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const FREQ_LEGEND = [
+  { label: "Frequent (≤15 min)", color: "#1c5cab" },
+  { label: "Standard (16–30 min)", color: "#3987e5" },
+  { label: "Infrequent (31–60 min)", color: "#6da7ec" },
+  { label: "Limited (60+ min / peak-only)", color: "#86b6ef" },
+];
+const GOOD = "#0ca30c", CRITICAL = "#d03b3b";
+
+let routesData = [];
+let metaData = {};
+
+async function loadJSON(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+function fmtNum(n) {
+  return n === null || n === undefined ? "—" : n.toLocaleString();
+}
+
+function renderStats(meta) {
+  const tiles = [
+    { label: "Routes with weekday service", value: fmtNum(meta.route_count) },
+    { label: "Weekday trips / day (network-wide)", value: fmtNum(meta.total_weekday_trips) },
+    { label: "Schedule checked as of", value: meta.weekday_date_checked || "—" },
+    { label: "GTFS feed version", value: meta.feed_version || "unversioned" },
+  ];
+  document.getElementById("stat-row").innerHTML = tiles.map(t => `
+    <div class="stat-tile">
+      <div class="value">${t.value}</div>
+      <div class="label">${t.label}</div>
+    </div>`).join("");
+
+  const updated = meta.generated_at ? new Date(meta.generated_at).toLocaleString() : "unknown";
+  document.getElementById("updated-line").textContent = `Last pulled ${updated}`;
+}
+
+function renderLegend() {
+  document.getElementById("legend-row").innerHTML = FREQ_LEGEND.map(t => `
+    <span class="swatch"><i style="background:${t.color}"></i>${t.label}</span>
+  `).join("");
+}
+
+function renderMap(geojson) {
+  const map = L.map("map", { scrollWheelZoom: false }).setView([39.0997, -94.5786], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+
+  if (!geojson || !geojson.features || geojson.features.length === 0) {
+    L.control.attribution({ prefix: false }).addTo(map);
+    return;
+  }
+
+  const layer = L.geoJSON(geojson, {
+    style: (feature) => ({
+      color: feature.properties.color || "#3987e5",
+      weight: 3,
+      opacity: 0.85,
+    }),
+    onEachFeature: (feature, lyr) => {
+      const p = feature.properties;
+      const headway = p.headway_minutes !== null && p.headway_minutes !== undefined
+        ? `${p.headway_minutes} min headway` : "headway unknown";
+      lyr.bindPopup(
+        `<b>${p.route_short_name ? p.route_short_name + " — " : ""}${p.route_long_name || p.route_id}</b><br>
+         <span class="tier">${p.route_type} · ${headway}</span>`
+      );
+      lyr.on("mouseover", () => lyr.setStyle({ weight: 6, opacity: 1 }));
+      lyr.on("mouseout", () => lyr.setStyle({ weight: 3, opacity: 0.85 }));
+    },
+  }).addTo(map);
+
+  map.fitBounds(layer.getBounds(), { padding: [16, 16] });
+}
+
+function trendItemHTML(entry, direction) {
+  const sign = direction === "up" ? "+" : "";
+  const cls = direction === "up" ? "up" : "down";
+  const name = entry.route_short_name ? `${entry.route_short_name} — ${entry.route_long_name}` : entry.route_long_name;
+  return `<div class="trend-item">
+    <span class="name">${name}</span>
+    <span class="delta ${cls}">${sign}${entry.pct_change}%</span>
+  </div>`;
+}
+
+function renderTrending(trending) {
+  const up = trending.up || [], down = trending.down || [];
+  document.getElementById("trend-up").innerHTML = up.length
+    ? up.map(e => trendItemHTML(e, "up")).join("")
+    : `<div class="empty-state">No routes gained weekday trips since the last detected change.</div>`;
+  document.getElementById("trend-down").innerHTML = down.length
+    ? down.map(e => trendItemHTML(e, "down")).join("")
+    : `<div class="empty-state">No routes lost weekday trips since the last detected change.</div>`;
+}
+
+function tierDotColor(tier) {
+  const hit = FREQ_LEGEND.find(t => t.label === tier);
+  return hit ? hit.color : "#898781";
+}
+
+let sortState = { key: "trips_weekday", dir: -1 };
+
+function renderTable() {
+  const rows = [...routesData].sort((a, b) => {
+    const { key, dir } = sortState;
+    let av = a[key], bv = b[key];
+    if (av === null || av === undefined) av = -Infinity;
+    if (bv === null || bv === undefined) bv = -Infinity;
+    if (typeof av === "string") return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+  document.getElementById("routes-tbody").innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.route_short_name || r.route_id}</td>
+      <td>${r.route_long_name}</td>
+      <td><span class="tier-dot" style="background:${tierDotColor(r.frequency_tier)}"></span>${r.route_type}</td>
+      <td class="num">${fmtNum(r.trips_weekday)}</td>
+      <td class="num">${r.headway_minutes ?? "—"}</td>
+      <td>${r.span_start || "—"} – ${r.span_end || "—"}</td>
+      <td class="num">${fmtNum(r.stop_count)}</td>
+      <td class="num">${r.route_length_miles ?? "—"}</td>
+    </tr>`).join("");
+}
+
+function wireSorting() {
+  document.querySelectorAll("#routes-table th[data-key]").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.key;
+      sortState = sortState.key === key ? { key, dir: -sortState.dir } : { key, dir: -1 };
+      renderTable();
+    });
+  });
+}
+
+const COMPARE_METRICS = [
+  { key: "trips_weekday", label: "Weekday trips / day" },
+  { key: "headway_minutes", label: "Headway (minutes — lower is more frequent)" },
+  { key: "stop_count", label: "Stops served" },
+  { key: "route_length_miles", label: "Route length (miles)" },
+];
+
+function populateCompareSelects() {
+  const opts = routesData.map(r =>
+    `<option value="${r.route_id}">${r.route_short_name ? r.route_short_name + " — " : ""}${r.route_long_name}</option>`
+  ).join("");
+  const a = document.getElementById("route-a");
+  const b = document.getElementById("route-b");
+  a.innerHTML = opts;
+  b.innerHTML = opts;
+  if (routesData.length > 1) {
+    a.selectedIndex = 0;
+    b.selectedIndex = 1;
+  }
+  a.addEventListener("change", renderCompare);
+  b.addEventListener("change", renderCompare);
+}
+
+function renderCompare() {
+  const routeA = routesData.find(r => r.route_id === document.getElementById("route-a").value);
+  const routeB = routesData.find(r => r.route_id === document.getElementById("route-b").value);
+  if (!routeA || !routeB) return;
+
+  document.getElementById("compare-grid").innerHTML = COMPARE_METRICS.map(m => {
+    const av = routeA[m.key], bv = routeB[m.key];
+    // For headway, lower is "better" (more frequent) — invert the bar so the
+    // more-frequent route still reads as the longer, more-favorable bar.
+    const invert = m.key === "headway_minutes";
+    const rawMax = Math.max(av || 0, bv || 0, 1);
+    const barLen = (v) => {
+      if (v === null || v === undefined) return 0;
+      return invert ? 100 - (v / rawMax) * 100 : (v / rawMax) * 100;
+    };
+    const row = (route, v) => `
+      <div class="compare-bar-row">
+        <span class="rname">${route.route_short_name || route.route_id}</span>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:${barLen(v)}%;background:var(--series-1)"></div></div>
+        <span class="rval">${v ?? "—"}</span>
+      </div>`;
+    return `
+      <div class="compare-metric">
+        <div class="metric-label">${m.label}</div>
+        <div class="compare-bars">
+          ${row(routeA, av)}
+          ${row(routeB, bv)}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function init() {
+  try {
+    const [payload, geojson, trending] = await Promise.all([
+      loadJSON("data/routes.json"),
+      loadJSON("data/routes.geojson").catch(() => ({ type: "FeatureCollection", features: [] })),
+      loadJSON("data/trending.json").catch(() => ({ up: [], down: [] })),
+    ]);
+    routesData = payload.routes || [];
+    metaData = payload.meta || {};
+
+    renderStats(metaData);
+    renderLegend();
+    renderMap(geojson);
+    renderTrending(trending);
+    renderTable();
+    wireSorting();
+    populateCompareSelects();
+    renderCompare();
+  } catch (err) {
+    document.getElementById("updated-line").textContent =
+      "No data yet — the first daily update hasn't run. Check back after the next scheduled run, or see the Actions tab.";
+    console.error(err);
+  }
+}
+
+init();
+</script>
