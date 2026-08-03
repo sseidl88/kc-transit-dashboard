@@ -23,8 +23,12 @@ GitHub Pages dashboard covering KCATA/RideKC scheduled transit service (Kansas C
 - Data source is **KCATA's public static GTFS feed** — freely downloadable, no
   auth, no rate limit observed. This is the one thing that's actually open here.
 - The feed host (`kc-metro.com`, a legacy IIS server) is intermittently slow/
-  unreachable — the pipeline should fail loudly in Actions logs rather than
-  silently produce empty data; check the Action run if a day's update is missing.
+  unreachable — confirmed with real connect-timeouts both from a dev sandbox
+  and from GitHub Actions' own runners (not just a local network quirk).
+  `download_gtfs()` retries with backoff (5 attempts) before giving up; if a
+  run still fails, it fails loudly in the Actions log rather than silently
+  producing empty data — check the Actions tab if a day's update is missing.
+  Tomorrow's cron will just try again; nothing is lost, only delayed.
 - Always `git pull --rebase origin main` before `git push` in CI, same reason as
   any daily-cron-writes-to-main setup: avoid races between scheduled and manual runs.
 

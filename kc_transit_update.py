@@ -17,6 +17,7 @@ import io
 import json
 import math
 import statistics
+import time
 import zipfile
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
@@ -62,16 +63,30 @@ def log(msg):
 # GTFS download + parsing
 # ---------------------------------------------------------------------------
 
-def download_gtfs(url, local_zip=None):
+def download_gtfs(url, local_zip=None, attempts=5, backoff_seconds=30):
     if local_zip:
         log(f"Using local GTFS zip: {local_zip}")
         data = Path(local_zip).read_bytes()
         return data, None
-    log(f"Downloading GTFS feed from {url}")
-    resp = requests.get(url, timeout=60)
-    resp.raise_for_status()
-    log(f"Downloaded {len(resp.content):,} bytes")
-    return resp.content, resp.headers.get("Last-Modified")
+
+    # kc-metro.com (the legacy IIS box KCATA's feed lives on) is intermittently
+    # slow to accept connections — observed connect-timeouts both from a dev
+    # sandbox and from GitHub Actions runners, not a one-off. Retry with
+    # backoff rather than failing the whole day's run on a single flaky attempt.
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            log(f"Downloading GTFS feed from {url} (attempt {attempt}/{attempts})")
+            resp = requests.get(url, timeout=90)
+            resp.raise_for_status()
+            log(f"Downloaded {len(resp.content):,} bytes")
+            return resp.content, resp.headers.get("Last-Modified")
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            log(f"  attempt {attempt} failed: {exc}")
+            if attempt < attempts:
+                time.sleep(backoff_seconds * attempt)
+    raise RuntimeError(f"Could not download GTFS feed after {attempts} attempts") from last_error
 
 
 def read_csv(zf, filename):
