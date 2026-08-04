@@ -1,0 +1,340 @@
+[
+  {
+    "date": "2026-08-04",
+    "feed_last_modified": "Thu, 23 Jul 2026 19:29:00 GMT",
+    "signature": [
+      [
+        "601",
+        230,
+        10.0
+      ],
+      [
+        "3",
+        154,
+        15.0
+      ],
+      [
+        "31",
+        131,
+        15.0
+      ],
+      [
+        "2",
+        115,
+        20.0
+      ],
+      [
+        "24",
+        109,
+        20.0
+      ],
+      [
+        "50",
+        101,
+        20.0
+      ],
+      [
+        "39",
+        77,
+        30.0
+      ],
+      [
+        "201",
+        67,
+        30.0
+      ],
+      [
+        "101",
+        62,
+        30.0
+      ],
+      [
+        "11",
+        59,
+        30.0
+      ],
+      [
+        "18",
+        57,
+        30.0
+      ],
+      [
+        "12",
+        49,
+        45.0
+      ],
+      [
+        "25",
+        49,
+        30.0
+      ],
+      [
+        "47",
+        49,
+        45.0
+      ],
+      [
+        "27",
+        46,
+        45.0
+      ],
+      [
+        "85",
+        45,
+        50.0
+      ],
+      [
+        "9",
+        42,
+        37.0
+      ],
+      [
+        "23",
+        39,
+        45.0
+      ],
+      [
+        "35",
+        36,
+        45.0
+      ],
+      [
+        "57",
+        36,
+        45.0
+      ],
+      [
+        "229",
+        34,
+        60.0
+      ],
+      [
+        "238",
+        31,
+        60.0
+      ],
+      [
+        "107",
+        30,
+        50.0
+      ],
+      [
+        "210",
+        30,
+        60.0
+      ],
+      [
+        "28",
+        28,
+        60.0
+      ],
+      [
+        "71",
+        28,
+        60.0
+      ],
+      [
+        "63",
+        27,
+        60.0
+      ],
+      [
+        "21",
+        26,
+        60.5
+      ],
+      [
+        "75",
+        26,
+        65.0
+      ],
+      [
+        "550",
+        6,
+        330.0
+      ]
+    ],
+    "routes": [
+      {
+        "route_id": "601",
+        "route_short_name": "STCR",
+        "trips_weekday": 230,
+        "headway_minutes": 10.0
+      },
+      {
+        "route_id": "3",
+        "route_short_name": "PMAX",
+        "trips_weekday": 154,
+        "headway_minutes": 15.0
+      },
+      {
+        "route_id": "31",
+        "route_short_name": "31",
+        "trips_weekday": 131,
+        "headway_minutes": 15.0
+      },
+      {
+        "route_id": "2",
+        "route_short_name": "TMAX",
+        "trips_weekday": 115,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "24",
+        "route_short_name": "24",
+        "trips_weekday": 109,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "50",
+        "route_short_name": "50",
+        "trips_weekday": 101,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "39",
+        "route_short_name": "39",
+        "trips_weekday": 77,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "201",
+        "route_short_name": "201",
+        "trips_weekday": 67,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "101",
+        "route_short_name": "101",
+        "trips_weekday": 62,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "11",
+        "route_short_name": "11",
+        "trips_weekday": 59,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "18",
+        "route_short_name": "18",
+        "trips_weekday": 57,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "12",
+        "route_short_name": "12",
+        "trips_weekday": 49,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "25",
+        "route_short_name": "25",
+        "trips_weekday": 49,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "47",
+        "route_short_name": "47",
+        "trips_weekday": 49,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "27",
+        "route_short_name": "27",
+        "trips_weekday": 46,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "85",
+        "route_short_name": "85",
+        "trips_weekday": 45,
+        "headway_minutes": 50.0
+      },
+      {
+        "route_id": "9",
+        "route_short_name": "9",
+        "trips_weekday": 42,
+        "headway_minutes": 37.0
+      },
+      {
+        "route_id": "23",
+        "route_short_name": "23",
+        "trips_weekday": 39,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "35",
+        "route_short_name": "35",
+        "trips_weekday": 36,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "57",
+        "route_short_name": "57",
+        "trips_weekday": 36,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "229",
+        "route_short_name": "229",
+        "trips_weekday": 34,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "238",
+        "route_short_name": "238",
+        "trips_weekday": 31,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "107",
+        "route_short_name": "107",
+        "trips_weekday": 30,
+        "headway_minutes": 50.0
+      },
+      {
+        "route_id": "210",
+        "route_short_name": "210",
+        "trips_weekday": 30,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "28",
+        "route_short_name": "28",
+        "trips_weekday": 28,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "71",
+        "route_short_name": "71",
+        "trips_weekday": 28,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "63",
+        "route_short_name": "63",
+        "trips_weekday": 27,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "21",
+        "route_short_name": "21",
+        "trips_weekday": 26,
+        "headway_minutes": 60.5
+      },
+      {
+        "route_id": "75",
+        "route_short_name": "75",
+        "trips_weekday": 26,
+        "headway_minutes": 65.0
+      },
+      {
+        "route_id": "550",
+        "route_short_name": "550",
+        "trips_weekday": 6,
+        "headway_minutes": 330.0
+      }
+    ]
+  }
+]
