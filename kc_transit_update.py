@@ -16,6 +16,7 @@ import csv
 import io
 import json
 import math
+import os
 import statistics
 import time
 import zipfile
@@ -25,7 +26,14 @@ from pathlib import Path
 
 import requests
 
+# KCATA's own feed host (a legacy IIS box) refuses connections from
+# cloud/datacenter IP ranges — confirmed with hard connect-timeouts from both
+# GitHub Actions runners and a cloud dev sandbox, consistently, not a fluke.
+# Transitland mirrors the same feed on infrastructure that's actually
+# reachable, so that's the default when an API key is available. See
+# CLAUDE.md for how to get a free key.
 GTFS_URL = "http://www.kc-metro.com/gtf/google_transit.zip"
+TRANSITLAND_URL = "https://transit.land/api/v2/rest/feeds/f-9yu-kcata/download_latest_feed_version"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "docs" / "data"
 HISTORY_PATH = DATA_DIR / "history.json"
@@ -69,15 +77,21 @@ def download_gtfs(url, local_zip=None, attempts=5, backoff_seconds=30):
         data = Path(local_zip).read_bytes()
         return data, None
 
-    # kc-metro.com (the legacy IIS box KCATA's feed lives on) is intermittently
-    # slow to accept connections — observed connect-timeouts both from a dev
-    # sandbox and from GitHub Actions runners, not a one-off. Retry with
-    # backoff rather than failing the whole day's run on a single flaky attempt.
+    transitland_key = os.environ.get("TRANSITLAND_API_KEY")
+    if transitland_key:
+        url = TRANSITLAND_URL
+        params = {"apikey": transitland_key}
+        log("Using Transitland mirror (TRANSITLAND_API_KEY set)")
+    else:
+        params = None
+        log("No TRANSITLAND_API_KEY set — falling back to KCATA's direct feed URL "
+            "(likely unreachable from cloud CI; see CLAUDE.md)")
+
     last_error = None
     for attempt in range(1, attempts + 1):
         try:
-            log(f"Downloading GTFS feed from {url} (attempt {attempt}/{attempts})")
-            resp = requests.get(url, timeout=90)
+            log(f"Downloading GTFS feed (attempt {attempt}/{attempts})")
+            resp = requests.get(url, params=params, timeout=90)
             resp.raise_for_status()
             log(f"Downloaded {len(resp.content):,} bytes")
             return resp.content, resp.headers.get("Last-Modified")

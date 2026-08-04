@@ -37,3 +37,9 @@ python kc_transit_update.py
 
 Writes JSON/GeoJSON into `docs/data/`. Open `docs/index.html` with any static file
 server to view.
+
+KCATA's own feed server isn't reachable from cloud/CI networks, so GitHub Actions
+pulls via a free [Transitland](https://www.transit.land/) API key instead (repo
+secret `TRANSITLAND_API_KEY`). Running from a normal residential network, the
+script falls back to KCATA's direct feed with no key needed. See
+[CLAUDE.md](CLAUDE.md) for details.

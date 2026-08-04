@@ -21,14 +21,27 @@ GitHub Pages dashboard covering KCATA/RideKC scheduled transit service (Kansas C
   - If real-time access is ever granted, that becomes an additive module —
     don't retrofit the existing metrics to fake precision they don't have.
 - Data source is **KCATA's public static GTFS feed** — freely downloadable, no
-  auth, no rate limit observed. This is the one thing that's actually open here.
-- The feed host (`kc-metro.com`, a legacy IIS server) is intermittently slow/
-  unreachable — confirmed with real connect-timeouts both from a dev sandbox
-  and from GitHub Actions' own runners (not just a local network quirk).
-  `download_gtfs()` retries with backoff (5 attempts) before giving up; if a
-  run still fails, it fails loudly in the Actions log rather than silently
+  auth, no rate limit observed... from a residential/normal network. It is
+  **not reachable from cloud/datacenter IPs** — confirmed with two full runs
+  of hard connect-timeouts from GitHub Actions' own runners (5 retries each,
+  ~90s per attempt, 100% failure, no variance — a dropped-packet block, not
+  an overloaded server) and from this project's dev sandbox. Pulling directly
+  from `kc-metro.com` in CI does not work; don't revert to it without solving
+  that first.
+- **Actual source in CI: Transitland's mirror**, via
+  `TRANSITLAND_API_KEY` (repo secret) →
+  `https://transit.land/api/v2/rest/feeds/f-9yu-kcata/download_latest_feed_version?apikey=...`
+  (302-redirects to a CDN-hosted copy of the same feed KCATA publishes).
+  Transitland's free tier only serves the *latest* feed version, which is
+  exactly what this pipeline needs — no historical archive access required.
+  Get a free key at transit.land (Interline account → free plan → API key
+  under "Subscriptions and API keys"). `download_gtfs()` falls back to the
+  direct `kc-metro.com` URL when `TRANSITLAND_API_KEY` isn't set (e.g. bare
+  local dev), which will work outside cloud CI/sandboxes but not inside them.
+- Retries with backoff (5 attempts) before giving up either way; if a run
+  still fails, it fails loudly in the Actions log rather than silently
   producing empty data — check the Actions tab if a day's update is missing.
-  Tomorrow's cron will just try again; nothing is lost, only delayed.
+  Tomorrow's cron just tries again; nothing is lost, only delayed.
 - Always `git pull --rebase origin main` before `git push` in CI, same reason as
   any daily-cron-writes-to-main setup: avoid races between scheduled and manual runs.
 
