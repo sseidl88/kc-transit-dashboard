@@ -336,5 +336,373 @@
         "headway_minutes": 330.0
       }
     ]
+  },
+  {
+    "date": "2026-08-04",
+    "feed_last_modified": "Fri, 24 Jul 2026 10:06:34 GMT",
+    "signature": [
+      [
+        "101",
+        62,
+        30.0
+      ],
+      [
+        "107",
+        30,
+        50.0
+      ],
+      [
+        "11",
+        59,
+        30.0
+      ],
+      [
+        "12",
+        49,
+        45.0
+      ],
+      [
+        "18",
+        57,
+        30.0
+      ],
+      [
+        "201",
+        67,
+        30.0
+      ],
+      [
+        "21",
+        26,
+        60.5
+      ],
+      [
+        "210",
+        30,
+        60.0
+      ],
+      [
+        "229",
+        34,
+        60.0
+      ],
+      [
+        "23",
+        39,
+        45.0
+      ],
+      [
+        "238",
+        31,
+        60.0
+      ],
+      [
+        "24",
+        109,
+        20.0
+      ],
+      [
+        "25",
+        49,
+        30.0
+      ],
+      [
+        "27",
+        46,
+        45.0
+      ],
+      [
+        "28",
+        28,
+        60.0
+      ],
+      [
+        "31",
+        131,
+        15.0
+      ],
+      [
+        "35",
+        36,
+        45.0
+      ],
+      [
+        "39",
+        77,
+        30.0
+      ],
+      [
+        "47",
+        49,
+        45.0
+      ],
+      [
+        "50",
+        101,
+        20.0
+      ],
+      [
+        "550",
+        6,
+        330.0
+      ],
+      [
+        "57",
+        36,
+        45.0
+      ],
+      [
+        "63",
+        27,
+        60.0
+      ],
+      [
+        "71",
+        28,
+        60.0
+      ],
+      [
+        "75",
+        26,
+        65.0
+      ],
+      [
+        "85",
+        45,
+        50.0
+      ],
+      [
+        "9",
+        42,
+        37.0
+      ],
+      [
+        "PMAX",
+        154,
+        15.0
+      ],
+      [
+        "STCR",
+        230,
+        10.0
+      ],
+      [
+        "TMAX",
+        115,
+        20.0
+      ]
+    ],
+    "routes": [
+      {
+        "route_id": "601",
+        "route_short_name": "STCR",
+        "route_long_name": "KC Streetcar",
+        "trips_weekday": 230,
+        "headway_minutes": 10.0
+      },
+      {
+        "route_id": "3",
+        "route_short_name": "PMAX",
+        "route_long_name": "Prospect MAX",
+        "trips_weekday": 154,
+        "headway_minutes": 15.0
+      },
+      {
+        "route_id": "31",
+        "route_short_name": "31",
+        "route_long_name": "31st Street",
+        "trips_weekday": 131,
+        "headway_minutes": 15.0
+      },
+      {
+        "route_id": "2",
+        "route_short_name": "TMAX",
+        "route_long_name": "Troost MAX",
+        "trips_weekday": 115,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "24",
+        "route_short_name": "24",
+        "route_long_name": "Independence",
+        "trips_weekday": 109,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "50",
+        "route_short_name": "50",
+        "route_long_name": "Brookside-Main",
+        "trips_weekday": 101,
+        "headway_minutes": 20.0
+      },
+      {
+        "route_id": "39",
+        "route_short_name": "39",
+        "route_long_name": "39th Street",
+        "trips_weekday": 77,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "201",
+        "route_short_name": "201",
+        "route_long_name": "North Oak",
+        "trips_weekday": 67,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "101",
+        "route_short_name": "101",
+        "route_long_name": "State",
+        "trips_weekday": 62,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "11",
+        "route_short_name": "11",
+        "route_long_name": "Northeast-Westside",
+        "trips_weekday": 59,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "18",
+        "route_short_name": "18",
+        "route_long_name": "Indiana",
+        "trips_weekday": 57,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "12",
+        "route_short_name": "12",
+        "route_long_name": "12th Street",
+        "trips_weekday": 49,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "25",
+        "route_short_name": "25",
+        "route_long_name": "Troost",
+        "trips_weekday": 49,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "47",
+        "route_short_name": "47",
+        "route_long_name": "Martin Luther King Jr.",
+        "trips_weekday": 49,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "27",
+        "route_short_name": "27",
+        "route_long_name": "27th Street",
+        "trips_weekday": 46,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "85",
+        "route_short_name": "85",
+        "route_long_name": "Paseo",
+        "trips_weekday": 45,
+        "headway_minutes": 50.0
+      },
+      {
+        "route_id": "9",
+        "route_short_name": "9",
+        "route_long_name": "9th Street",
+        "trips_weekday": 42,
+        "headway_minutes": 37.0
+      },
+      {
+        "route_id": "23",
+        "route_short_name": "23",
+        "route_long_name": "23rd Street",
+        "trips_weekday": 39,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "35",
+        "route_short_name": "35",
+        "route_long_name": "35th Street",
+        "trips_weekday": 36,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "57",
+        "route_short_name": "57",
+        "route_long_name": "Wornall",
+        "trips_weekday": 36,
+        "headway_minutes": 45.0
+      },
+      {
+        "route_id": "229",
+        "route_short_name": "229",
+        "route_long_name": "Boardwalk-KCI",
+        "trips_weekday": 34,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "238",
+        "route_short_name": "238",
+        "route_long_name": "Meadowbrook",
+        "trips_weekday": 31,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "107",
+        "route_short_name": "107",
+        "route_long_name": "7th Street - Parallel",
+        "trips_weekday": 30,
+        "headway_minutes": 50.0
+      },
+      {
+        "route_id": "210",
+        "route_short_name": "210",
+        "route_long_name": "Front Street",
+        "trips_weekday": 30,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "28",
+        "route_short_name": "28",
+        "route_long_name": "Blue Ridge",
+        "trips_weekday": 28,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "71",
+        "route_short_name": "71",
+        "route_long_name": "Prospect",
+        "trips_weekday": 28,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "63",
+        "route_short_name": "63",
+        "route_long_name": "63rd Street",
+        "trips_weekday": 27,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "21",
+        "route_short_name": "21",
+        "route_long_name": "Clevland-Antioch",
+        "trips_weekday": 26,
+        "headway_minutes": 60.5
+      },
+      {
+        "route_id": "75",
+        "route_short_name": "75",
+        "route_long_name": "75th Street",
+        "trips_weekday": 26,
+        "headway_minutes": 65.0
+      },
+      {
+        "route_id": "550",
+        "route_short_name": "550",
+        "route_long_name": "Lee's Summit Express",
+        "trips_weekday": 6,
+        "headway_minutes": 330.0
+      }
+    ]
   }
 ]
