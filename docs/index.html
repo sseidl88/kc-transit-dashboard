@@ -8,14 +8,20 @@
 
 <div class="wrap">
   <header class="top">
-    <h1>KC Transit Service Dashboard</h1>
-    <p class="sub">
-      Scheduled-service metrics for KCATA/RideKC routes, derived daily from KCATA's public GTFS feed —
-      frequency, span of service, and coverage across the network. KCATA does not publish an open
-      real-time or ridership API, so this tracks <em>scheduled</em> service, not live on-time performance.
-      See the note in the footer.
-    </p>
+    <div class="top-controls">
+      <div>
+        <h1>KC Transit Service Dashboard</h1>
+        <p class="sub">
+          Scheduled-service metrics for KCATA/RideKC routes, derived daily from KCATA's public GTFS feed —
+          frequency, span of service, and coverage across the network. KCATA does not publish an open
+          real-time or ridership API, so this tracks <em>scheduled</em> service, not live on-time performance.
+          See the note in the footer.
+        </p>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" type="button">Theme: System</button>
+    </div>
     <div class="updated" id="updated-line">Loading…</div>
+    <div id="stale-banner"></div>
   </header>
 
   <section id="stats">
@@ -25,6 +31,10 @@
   <section id="map-section">
     <h2>Route network</h2>
     <p class="section-note">Every weekday route drawn from its scheduled shape, colored by how frequently it runs.</p>
+    <div class="map-controls">
+      <label><input type="checkbox" id="frequent-only-toggle"> Frequent network only (≤15 min)</label>
+      <label><input type="checkbox" id="hubs-toggle" checked> Show transfer hubs (3+ routes)</label>
+    </div>
     <div id="map"></div>
     <div class="legend-row" id="legend-row"></div>
   </section>
@@ -35,7 +45,7 @@
       KCATA revises schedules a few times a year, not daily — most days this will be empty.
       It only fills in when a real schedule change is detected in the feed.
     </p>
-    <div class="trend-cols">
+    <div class="trend-cols" id="trend-cols-daily">
       <div class="trend-col">
         <h3>Service increased</h3>
         <div id="trend-up"></div>
@@ -45,11 +55,62 @@
         <div id="trend-down"></div>
       </div>
     </div>
+    <div class="trend-cols" id="trend-cols-daily-addrem" style="margin-top:0.75rem"></div>
+  </section>
+
+  <section id="historical-section" style="display:none">
+    <h2 id="historical-heading">Network change: then vs. now</h2>
+    <p class="section-note" id="historical-note"></p>
+    <div class="stat-row" id="historical-stats"></div>
+    <div class="trend-cols" style="margin-top:0.9rem">
+      <div class="trend-col">
+        <h3>Added since then</h3>
+        <div id="historical-added"></div>
+      </div>
+      <div class="trend-col">
+        <h3>Discontinued since then</h3>
+        <div id="historical-discontinued"></div>
+      </div>
+    </div>
+    <div class="trend-cols" style="margin-top:0.75rem">
+      <div class="trend-col">
+        <h3>Frequency increased</h3>
+        <div id="historical-up"></div>
+      </div>
+      <div class="trend-col">
+        <h3>Frequency decreased</h3>
+        <div id="historical-down"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="equity-section">
+    <h2>Weekday vs. weekend service</h2>
+    <p class="section-note">
+      Routes with solid weekday service but little or no weekend coverage — a common transit-equity gap
+      for anyone whose schedule doesn't match a 9-to-5 commute.
+    </p>
+    <div class="stat-row" id="equity-stats"></div>
+    <div class="table-card" style="margin-top:0.9rem">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Route</th>
+            <th class="num">Weekday trips</th>
+            <th class="num">Saturday trips</th>
+            <th class="num">Sunday trips</th>
+            <th class="num">Weekend/weekday ratio</th>
+          </tr>
+        </thead>
+        <tbody id="equity-tbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="table-section">
     <h2>All routes</h2>
     <p class="section-note">Click a column header to sort.</p>
+    <input class="search-input" id="route-search" type="search" placeholder="Filter by route number or name…">
     <div class="table-card">
       <table class="routes" id="routes-table">
         <thead>
@@ -111,6 +172,34 @@ async function loadJSON(path) {
   return res.json();
 }
 
+function initThemeToggle() {
+  const STATES = ["system", "light", "dark"];
+  const btn = document.getElementById("theme-toggle");
+  const apply = (state) => {
+    if (state === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", state);
+    btn.textContent = `Theme: ${state[0].toUpperCase()}${state.slice(1)}`;
+  };
+  let state = localStorage.getItem("kc-transit-theme") || "system";
+  if (!STATES.includes(state)) state = "system";
+  apply(state);
+  btn.addEventListener("click", () => {
+    state = STATES[(STATES.indexOf(state) + 1) % STATES.length];
+    localStorage.setItem("kc-transit-theme", state);
+    apply(state);
+  });
+}
+
+function renderStaleBanner(meta) {
+  const el = document.getElementById("stale-banner");
+  if (!meta.generated_at) return;
+  const ageDays = (Date.now() - new Date(meta.generated_at)) / 86400000;
+  if (ageDays < 3) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="stale-banner">Data is ${Math.floor(ageDays)} days old — the daily pipeline
+    may have missed a run. Check the <a href="https://github.com/sseidl88/kc-transit-dashboard/actions"
+    target="_blank" rel="noopener">Actions tab</a>.</div>`;
+}
+
 function fmtNum(n) {
   return n === null || n === undefined ? "—" : n.toLocaleString();
 }
@@ -138,19 +227,13 @@ function renderLegend() {
   `).join("");
 }
 
-function renderMap(geojson) {
-  const map = L.map("map", { scrollWheelZoom: false }).setView([39.0997, -94.5786], 11);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+const FREQUENT_MAX_HEADWAY = 15;
+let leafletMap, routeLayer, hubLayer, routeGeojson;
 
-  if (!geojson || !geojson.features || geojson.features.length === 0) {
-    L.control.attribution({ prefix: false }).addTo(map);
-    return;
-  }
-
-  const layer = L.geoJSON(geojson, {
+function buildRouteLayer(geojson, frequentOnly) {
+  if (routeLayer) leafletMap.removeLayer(routeLayer);
+  routeLayer = L.geoJSON(geojson, {
+    filter: (feature) => !frequentOnly || (feature.properties.headway_minutes ?? Infinity) <= FREQUENT_MAX_HEADWAY,
     style: (feature) => ({
       color: feature.properties.color || "#3987e5",
       weight: 3,
@@ -167,9 +250,52 @@ function renderMap(geojson) {
       lyr.on("mouseover", () => lyr.setStyle({ weight: 6, opacity: 1 }));
       lyr.on("mouseout", () => lyr.setStyle({ weight: 3, opacity: 0.85 }));
     },
-  }).addTo(map);
+  }).addTo(leafletMap);
+}
 
-  map.fitBounds(layer.getBounds(), { padding: [16, 16] });
+function buildHubLayer(hubsGeojson) {
+  hubLayer = L.layerGroup();
+  for (const f of (hubsGeojson.features || [])) {
+    const p = f.properties;
+    const [lon, lat] = f.geometry.coordinates;
+    L.circleMarker([lat, lon], {
+      radius: 5 + Math.min(p.route_count, 10),
+      color: "#0b0b0b",
+      weight: 1,
+      fillColor: "#eda100",
+      fillOpacity: 0.85,
+    }).bindPopup(
+      `<b>${p.stop_name}</b><br><span class="hub-routes">${p.route_count} routes: ${p.routes.join(", ")}</span>`
+    ).addTo(hubLayer);
+  }
+}
+
+function renderMap(geojson, hubsGeojson) {
+  routeGeojson = geojson;
+  leafletMap = L.map("map", { scrollWheelZoom: false }).setView([39.0997, -94.5786], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(leafletMap);
+
+  if (!geojson || !geojson.features || geojson.features.length === 0) {
+    L.control.attribution({ prefix: false }).addTo(leafletMap);
+    return;
+  }
+
+  buildRouteLayer(geojson, false);
+  leafletMap.fitBounds(routeLayer.getBounds(), { padding: [16, 16] });
+
+  buildHubLayer(hubsGeojson || { features: [] });
+  hubLayer.addTo(leafletMap);
+
+  document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
+    buildRouteLayer(routeGeojson, e.target.checked);
+  });
+  document.getElementById("hubs-toggle").addEventListener("change", (e) => {
+    if (e.target.checked) hubLayer.addTo(leafletMap);
+    else leafletMap.removeLayer(hubLayer);
+  });
 }
 
 function trendItemHTML(entry, direction) {
@@ -190,6 +316,139 @@ function renderTrending(trending) {
   document.getElementById("trend-down").innerHTML = down.length
     ? down.map(e => trendItemHTML(e, "down")).join("")
     : `<div class="empty-state">No routes lost weekday trips since the last detected change.</div>`;
+
+  const added = trending.added || [], discontinued = trending.discontinued || [];
+  const addRemEl = document.getElementById("trend-cols-daily-addrem");
+  if (added.length === 0 && discontinued.length === 0) {
+    addRemEl.innerHTML = "";
+    return;
+  }
+  const routeName = (r) => `${r.route_short_name || r.route_id} — ${r.route_long_name}`;
+  addRemEl.innerHTML = `
+    <div class="trend-col">
+      <h3>Routes added</h3>
+      ${added.length ? added.map(r => `<div class="trend-item"><span class="name">${routeName(r)}</span></div>`).join("")
+                      : `<div class="empty-state">None.</div>`}
+    </div>
+    <div class="trend-col">
+      <h3>Routes discontinued</h3>
+      ${discontinued.length ? discontinued.map(r => `<div class="trend-item"><span class="name">${routeName(r)}</span></div>`).join("")
+                             : `<div class="empty-state">None.</div>`}
+    </div>`;
+}
+
+// Mirrors compute_trending() in kc_transit_update.py, including the
+// reconcile-by-long-name pass (a route's public number can change between
+// feed republishes years apart — e.g. KC Streetcar went STRC -> STCR — and
+// without reconciling that, the same still-running route would wrongly show
+// up as both "added" and "discontinued").
+function routeCompareKey(r) { return r.route_short_name || r.route_id; }
+
+function freqChangeEntry(prev, curr, label) {
+  const before = prev.trips_weekday, after = curr.trips_weekday;
+  return {
+    route_short_name: label,
+    route_long_name: curr.route_long_name,
+    before, after,
+    pct_change: Math.round(((after - before) / before) * 1000) / 10,
+  };
+}
+
+function computeHistoricalDiff(baselineRoutes, currentRoutes) {
+  const prevByKey = new Map(baselineRoutes.map(r => [routeCompareKey(r), r]));
+  const currByKey = new Map(currentRoutes.map(r => [routeCompareKey(r), r]));
+  const up = [], down = [];
+
+  for (const [key, r] of currByKey) {
+    const prev = prevByKey.get(key);
+    if (!prev || !prev.trips_weekday || r.trips_weekday === prev.trips_weekday) continue;
+    const entry = freqChangeEntry(prev, r, r.route_short_name);
+    (entry.after > entry.before ? up : down).push(entry);
+  }
+
+  const added = [...currByKey].filter(([k]) => !prevByKey.has(k)).map(([, r]) => r);
+  const discontinued = [...prevByKey].filter(([k]) => !currByKey.has(k)).map(([, r]) => r);
+
+  const discByName = new Map(discontinued.filter(r => r.route_long_name).map(r => [r.route_long_name, r]));
+  const reconciled = new Set();
+  const stillAdded = [];
+  for (const r of added) {
+    const prev = r.route_long_name ? discByName.get(r.route_long_name) : null;
+    if (!prev) { stillAdded.push(r); continue; }
+    reconciled.add(r.route_long_name);
+    if (prev.trips_weekday && r.trips_weekday !== prev.trips_weekday) {
+      const entry = freqChangeEntry(prev, r, `${prev.route_short_name} → ${r.route_short_name}`);
+      (entry.after > entry.before ? up : down).push(entry);
+    }
+  }
+  const stillDiscontinued = discontinued.filter(r => !reconciled.has(r.route_long_name));
+
+  up.sort((a, b) => b.pct_change - a.pct_change);
+  down.sort((a, b) => a.pct_change - b.pct_change);
+  stillAdded.sort((a, b) => b.trips_weekday - a.trips_weekday);
+  stillDiscontinued.sort((a, b) => b.trips_weekday - a.trips_weekday);
+
+  return { up, down, added: stillAdded, discontinued: stillDiscontinued };
+}
+
+function renderHistorical(baseline) {
+  if (!baseline || !baseline.routes) return;
+  const diff = computeHistoricalDiff(baseline.routes, routesData);
+  const section = document.getElementById("historical-section");
+  section.style.display = "";
+
+  document.getElementById("historical-heading").textContent =
+    `Network change: ${baseline.label} → today`;
+  document.getElementById("historical-note").textContent =
+    `KCATA's schedule archive only goes back to a single point via the Internet Archive (no dense ` +
+    `historical feed history is freely available), so this compares that one snapshot to today rather ` +
+    `than a continuous timeline.`;
+
+  const thenTrips = baseline.routes.reduce((s, r) => s + r.trips_weekday, 0);
+  const nowTrips = routesData.reduce((s, r) => s + r.trips_weekday, 0);
+  document.getElementById("historical-stats").innerHTML = [
+    { label: `Routes (${baseline.label})`, value: fmtNum(baseline.routes.length) },
+    { label: "Routes (today)", value: fmtNum(routesData.length) },
+    { label: `Weekday trips (${baseline.label})`, value: fmtNum(thenTrips) },
+    { label: "Weekday trips (today)", value: fmtNum(nowTrips) },
+  ].map(t => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+
+  const routeName = (r) => `${r.route_short_name || r.route_id} — ${r.route_long_name}`;
+  const list = (items, empty) => items.length
+    ? items.map(r => `<div class="trend-item"><span class="name">${routeName(r)}</span></div>`).join("")
+    : `<div class="empty-state">${empty}</div>`;
+  document.getElementById("historical-added").innerHTML = list(diff.added, "No new routes.");
+  document.getElementById("historical-discontinued").innerHTML = list(diff.discontinued, "No routes were dropped.");
+  document.getElementById("historical-up").innerHTML = diff.up.length
+    ? diff.up.map(e => trendItemHTML(e, "up")).join("") : `<div class="empty-state">None.</div>`;
+  document.getElementById("historical-down").innerHTML = diff.down.length
+    ? diff.down.map(e => trendItemHTML(e, "down")).join("") : `<div class="empty-state">None.</div>`;
+}
+
+function renderEquity() {
+  const withWeekday = routesData.filter(r => r.trips_weekday > 0);
+  const noSaturday = withWeekday.filter(r => r.trips_saturday === 0).length;
+  const noSunday = withWeekday.filter(r => r.trips_sunday === 0).length;
+
+  document.getElementById("equity-stats").innerHTML = [
+    { label: "Routes with no Saturday service", value: fmtNum(noSaturday) },
+    { label: "Routes with no Sunday service", value: fmtNum(noSunday) },
+    { label: "Weekday routes, total", value: fmtNum(withWeekday.length) },
+  ].map(t => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+
+  const ranked = withWeekday.map(r => ({
+    ...r,
+    weekendRatio: ((r.trips_saturday + r.trips_sunday) / 2) / r.trips_weekday,
+  })).sort((a, b) => a.weekendRatio - b.weekendRatio).slice(0, 10);
+
+  document.getElementById("equity-tbody").innerHTML = ranked.map(r => `
+    <tr>
+      <td>${r.route_short_name || r.route_id} — ${r.route_long_name}</td>
+      <td class="num">${fmtNum(r.trips_weekday)}</td>
+      <td class="num">${fmtNum(r.trips_saturday)}</td>
+      <td class="num">${fmtNum(r.trips_sunday)}</td>
+      <td class="num">${(r.weekendRatio * 100).toFixed(0)}%</td>
+    </tr>`).join("");
 }
 
 function tierDotColor(tier) {
@@ -198,9 +457,15 @@ function tierDotColor(tier) {
 }
 
 let sortState = { key: "trips_weekday", dir: -1 };
+let searchQuery = "";
 
 function renderTable() {
-  const rows = [...routesData].sort((a, b) => {
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? routesData.filter(r => (r.route_short_name || "").toLowerCase().includes(q)
+                           || (r.route_long_name || "").toLowerCase().includes(q))
+    : routesData;
+  const rows = [...filtered].sort((a, b) => {
     const { key, dir } = sortState;
     let av = a[key], bv = b[key];
     if (av === null || av === undefined) av = -Infinity;
@@ -228,6 +493,10 @@ function wireSorting() {
       sortState = sortState.key === key ? { key, dir: -sortState.dir } : { key, dir: -1 };
       renderTable();
     });
+  });
+  document.getElementById("route-search").addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    renderTable();
   });
 }
 
@@ -287,19 +556,25 @@ function renderCompare() {
 }
 
 async function init() {
+  initThemeToggle();
   try {
-    const [payload, geojson, trending] = await Promise.all([
+    const [payload, geojson, hubsGeojson, trending, baseline] = await Promise.all([
       loadJSON("data/routes.json"),
       loadJSON("data/routes.geojson").catch(() => ({ type: "FeatureCollection", features: [] })),
-      loadJSON("data/trending.json").catch(() => ({ up: [], down: [] })),
+      loadJSON("data/hubs.geojson").catch(() => ({ type: "FeatureCollection", features: [] })),
+      loadJSON("data/trending.json").catch(() => ({ up: [], down: [], added: [], discontinued: [] })),
+      loadJSON("data/baseline_2020.json").catch(() => null),
     ]);
     routesData = payload.routes || [];
     metaData = payload.meta || {};
 
     renderStats(metaData);
+    renderStaleBanner(metaData);
     renderLegend();
-    renderMap(geojson);
+    renderMap(geojson, hubsGeojson);
     renderTrending(trending);
+    renderHistorical(baseline);
+    renderEquity();
     renderTable();
     wireSorting();
     populateCompareSelects();

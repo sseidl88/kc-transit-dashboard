@@ -93,34 +93,104 @@ daily, the pipeline only appends a new history entry when a route's
 recorded entry — most days produce zero new history rows and empty trending
 lists, which is the correct/expected state, not a bug.
 
-**Gotcha already hit once:** `route_signature()` must return **lists**, not
-tuples — the signature gets JSON round-tripped through `history.json`, and
-`json.loads` never reconstructs tuples, so comparing a fresh tuple against a
-disk-loaded list is always `!=` even when nothing changed. Caused every run to
-falsely detect a "change." Covered by the local fixture test.
+**Two real bugs hit while building this, both now covered by `tests/test_pipeline.py`:**
+1. `route_signature()` must return **lists**, not tuples — the signature gets
+   JSON round-tripped through `history.json`, and `json.loads` never
+   reconstructs tuples, so comparing a fresh tuple against a disk-loaded list
+   is always `!=` even when nothing changed. Caused every run to falsely
+   detect a "change."
+2. `pick_representative_dates()` must **clamp its search into the feed's own
+   date range**, not always search forward from `datetime.now()`. Surfaced
+   while backfilling the 2020 archive: "today" (2026) falls outside every
+   `calendar.txt`/`calendar_dates.txt` entry in a 2020 feed, so
+   `active_service_ids()` came back empty for every candidate date and every
+   route silently got zero trips (`0 routes, 0 weekday trips` — no error, just
+   wrong). Fixed via `feed_date_bounds()` clamping the anchor date into
+   `[feed_min, feed_max - 14d]` before searching.
+
+**Route matching uses `route_short_name`, not `route_id`** (see `route_key()`),
+because `route_id` isn't guaranteed stable across feed republishes, and
+`compute_trending()` needs a stable join key to diff two snapshots — daily
+consecutive ones or, for the historical backfill, snapshots years apart.
+On top of that, `compute_trending()` reconciles apparent "added + discontinued"
+pairs that share an exact `route_long_name` (see the long comment above the
+`discontinued_by_name` block) — needed because KC Streetcar's public route
+code changed **STRC → STCR** between the 2020 archive and today's feed. Without
+that reconciliation pass, KC's flagship transit line would show up as
+simultaneously a brand-new route and a discontinued one. The same reconciliation
+logic is duplicated in `docs/index.html` (`computeHistoricalDiff()`) for the
+frontend's then-vs-now section — keep both in sync if this logic changes.
 
 ---
 
-## Testing without live network access
+## Historical backfill (`docs/data/baseline_2020.json`)
 
-The `kc-metro.com` feed host was unreachable from the sandboxed dev environment
-during initial build (works fine from GitHub Actions' runners). `--local-zip PATH`
-lets you point the script at any GTFS-shaped zip — a synthetic fixture was used to
-validate parsing logic (frequency tiers, headway math, trending detection,
-idempotency) before the first real Actions run. Re-generate a quick fixture if you
-need to test again: a `routes.txt`/`calendar.txt`/`trips.txt`/`stop_times.txt`/
-`shapes.txt` set with a handful of routes at different headways is enough.
+KCATA's own feed archive isn't freely accessible for anything but the *latest*
+version — Transitland's free tier only serves current feeds; historical
+`feed_versions` downloads 401 without a paid or Interline
+Hobbyist/Academic-credits plan (a form-based application, not automatic). The
+only free historical data available was a **single** Wayback Machine snapshot
+of `kc-metro.com/gtf/google_transit.zip` from **2020-11-20**
+(`web.archive.org/cdx/search/cdx?url=kc-metro.com/gtf/google_transit.zip` —
+checked broader domain queries too, this is genuinely the only one). So the
+"Network change" section is a one-time **then-vs-now** comparison, not a
+continuous timeline — framed that way in the UI copy, not oversold as more
+than it is.
+
+`baseline_2020.json` was generated once, locally, and is committed as static
+data — **the daily workflow never regenerates it** (`main()` only writes it
+when `--baseline-out` is passed, which the workflow doesn't pass). Regenerate
+command, if ever needed:
+```
+python kc_transit_update.py --local-zip <2020 zip> --as-of-date 2020-12-01 \
+  --baseline-out docs/data/baseline_2020.json --baseline-label "November 2020"
+```
+If someone gets Transitland's Hobbyist/Academic credits (or a paid plan)
+later, this could become a real multi-point timeline instead — worth
+revisiting, not worth blocking on.
+
+---
+
+## Testing
+
+`tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
+push/PR) covers the time/distance helpers, calendar exception handling, both
+bugs above as explicit regression tests, `compute_trending()`'s up/down/added/
+discontinued/reconciliation logic, and an end-to-end `build_dataset()` pass
+against a small synthetic GTFS zip built in-memory (`_make_fixture_zip()`).
+
+Separately: the `kc-metro.com` feed host was unreachable from the sandboxed dev
+environment during initial build (works fine from GitHub Actions' runners).
+`--local-zip PATH` points the script at any GTFS-shaped zip for manual
+end-to-end runs outside the test suite.
 
 ---
 
 ## Frontend (`docs/index.html`)
 
-- Single fetch of `data/routes.json` (metrics + meta), `data/routes.geojson` (map
-  lines), `data/trending.json` — all with graceful fallback if a file 404s (e.g.
-  before the first Actions run has ever committed data).
+- Fetches `data/routes.json` (metrics + meta), `data/routes.geojson` (route
+  lines), `data/hubs.geojson` (transfer-hub points), `data/trending.json`, and
+  `data/baseline_2020.json` — all with graceful fallback if a file 404s (e.g.
+  before the first Actions run has ever committed data, or `baseline_2020.json`
+  if it's ever removed).
 - Map: Leaflet + OpenStreetMap tiles (no API key), routes colored by frequency
-  tier, popup per route on click, hover to highlight.
+  tier, popup per route on click, hover to highlight. Two toggles:
+  "Frequent network only" (rebuilds the route layer filtered to
+  `headway_minutes <= 15`, see `FREQUENT_MAX_HEADWAY`) and transfer hubs
+  (stops served by 3+ weekday routes, computed server-side in
+  `build_dataset()`, shown/hidden without rebuilding).
+- "Network change" section: 2020-vs-today comparison computed client-side by
+  `computeHistoricalDiff()` — deliberately mirrors `compute_trending()` in
+  Python rather than shipping a precomputed diff file, so it always reflects
+  whatever `routes.json` currently has without needing a backend regeneration
+  step.
+- "Weekday vs. weekend" equity section: routes ranked by
+  `(trips_saturday + trips_sunday) / 2 / trips_weekday`, purely client-side
+  from data already in `routes.json` — no backend change needed for this one.
 - Route comparison mirrors the nba-visual "player comparison" pattern — two
   `<select>`s, thin comparison bars per metric. Headway is inverted when sizing
   its bar (lower minutes = more frequent = should read as the "bigger" bar).
-- Table is client-side sortable by clicking any header (`sortState` in the script).
+- Table is client-side sortable by clicking any header (`sortState`) and
+  filterable via the search box (`searchQuery`) — both re-run `renderTable()`.
+- Theme toggle cycles system/light/dark via `data-theme` on `<html>`, persisted
+  in `localStorage`; stale-data banner fires if `meta.generated_at` is >3 days old.

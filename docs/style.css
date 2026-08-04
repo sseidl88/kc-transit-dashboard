@@ -281,3 +281,76 @@ footer {
   font-size: 0.78rem;
 }
 footer a { color: var(--text-muted); }
+
+/* Header controls */
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.theme-toggle {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.theme-toggle:hover { color: var(--text-primary); }
+
+.stale-banner {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+/* Map controls */
+.map-controls {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin: 0.7rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.map-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+.map-controls input[type="checkbox"] { accent-color: var(--series-1); }
+
+.leaflet-popup-content .hub-routes { font-size: 0.8rem; color: var(--text-secondary); max-width: 220px; }
+
+/* Search */
+.search-input {
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 280px;
+  margin-bottom: 0.7rem;
+}
+
+/* Equity */
+.equity-note-strong { color: var(--text-primary); font-weight: 600; }
+
+@media (max-width: 640px) {
+  #map { height: 380px; }
+  .wrap { padding: 0 0.85rem; }
+  header.top h1 { font-size: 1.3rem; }
+  .top-controls { flex-direction: column; }
+  table.routes { font-size: 0.8rem; }
+}
