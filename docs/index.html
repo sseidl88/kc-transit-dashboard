@@ -12,10 +12,10 @@
       <div>
         <h1>KC Transit Service Dashboard</h1>
         <p class="sub">
-          Scheduled-service metrics for KCATA/RideKC routes, derived daily from KCATA's public GTFS feed —
-          frequency, span of service, and coverage across the network. KCATA does not publish an open
-          real-time or ridership API, so this tracks <em>scheduled</em> service, not live on-time performance.
-          See the note in the footer.
+          Scheduled-service metrics for KCATA and RideKC Johnson County Transit, derived daily from their
+          public GTFS feeds — frequency, span of service, and coverage across the network. Neither agency
+          publishes an open real-time or ridership API, so this tracks <em>scheduled</em> service, not live
+          on-time performance. See the note in the footer.
         </p>
       </div>
       <button class="theme-toggle" id="theme-toggle" type="button">Theme: System</button>
@@ -34,9 +34,38 @@
     <div class="map-controls">
       <label><input type="checkbox" id="frequent-only-toggle"> Frequent network only (≤15 min)</label>
       <label><input type="checkbox" id="hubs-toggle" checked> Show transfer hubs (3+ routes)</label>
+      <label><input type="checkbox" id="walkshed-toggle"> Frequent-network walkshed (¼ mi)</label>
+      <label><input type="checkbox" id="density-toggle"> Stop density</label>
     </div>
     <div id="map"></div>
     <div class="legend-row" id="legend-row"></div>
+    <p class="section-note" id="walkshed-note" style="display:none; margin-top:0.5rem">
+      Shaded circles approximate a quarter-mile walk from any stop on a ≤15-min route — a rough
+      "frequent-network walkshed," not a true street-network isochrone. Gaps in the shading are the
+      closest thing here to a transit-desert map.
+    </p>
+  </section>
+
+  <section id="district-section" style="display:none">
+    <h2>Frequent-network access by council district</h2>
+    <p class="section-note">
+      Kansas City, MO's 6 council districts only — Johnson County Transit's service area falls outside
+      them, so this table is necessarily KCMO-scoped, not full-region. Boundaries from
+      <a href="https://data.kcmo.org/GIS/City-Council-Districts-Shapefile-Effective-2023/5qar-bf4m" target="_blank" rel="noopener">Open Data KC</a>.
+    </p>
+    <div class="table-card">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>District</th>
+            <th class="num">Frequent-network stops</th>
+            <th class="num">All stops</th>
+            <th class="num">Share frequent</th>
+          </tr>
+        </thead>
+        <tbody id="district-tbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="trending-section">
@@ -117,6 +146,7 @@
           <tr>
             <th data-key="route_short_name">Route</th>
             <th data-key="route_long_name">Name</th>
+            <th data-key="agency">Agency</th>
             <th data-key="route_type">Type</th>
             <th class="num" data-key="trips_weekday">Weekday trips</th>
             <th class="num" data-key="headway_minutes">Headway (min)</th>
@@ -163,13 +193,39 @@ const FREQ_LEGEND = [
 ];
 const GOOD = "#0ca30c", CRITICAL = "#d03b3b";
 
-let routesData = [];
-let metaData = {};
+const AGENCIES = [
+  { id: "kcata", name: "KCATA", dir: "data" },
+  { id: "jocounty", name: "RideKC Johnson County Transit", dir: "data/jocounty" },
+];
+
+let routesData = [];       // merged across agencies — drives map/table/compare/equity
+let kcataRoutesData = [];  // KCATA-only — the 2020 baseline comparison is KCATA-scoped
+let agencyMetas = [];
 
 async function loadJSON(path) {
   const res = await fetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
   return res.json();
+}
+
+const emptyFC = () => ({ type: "FeatureCollection", features: [] });
+
+async function loadAgencyBundle(agency) {
+  const [payload, geojson, hubs, stops, trending] = await Promise.all([
+    loadJSON(`${agency.dir}/routes.json`),
+    loadJSON(`${agency.dir}/routes.geojson`).catch(() => emptyFC()),
+    loadJSON(`${agency.dir}/hubs.geojson`).catch(() => emptyFC()),
+    loadJSON(`${agency.dir}/stops.geojson`).catch(() => emptyFC()),
+    loadJSON(`${agency.dir}/trending.json`).catch(() => ({ up: [], down: [], added: [], discontinued: [] })),
+  ]);
+  const routes = (payload.routes || []).map(r => ({ ...r, agency: agency.name, agency_id: agency.id }));
+  for (const f of geojson.features || []) f.properties.agency = agency.name;
+  for (const f of hubs.features || []) f.properties.agency = agency.name;
+  for (const f of stops.features || []) f.properties.agency = agency.name;
+  for (const list of [trending.up, trending.down, trending.added, trending.discontinued]) {
+    for (const e of list || []) e.agency = agency.name;
+  }
+  return { agency, meta: payload.meta || {}, routes, geojson, hubs, stops, trending };
 }
 
 function initThemeToggle() {
@@ -190,10 +246,12 @@ function initThemeToggle() {
   });
 }
 
-function renderStaleBanner(meta) {
+function renderStaleBanner(metas) {
   const el = document.getElementById("stale-banner");
-  if (!meta.generated_at) return;
-  const ageDays = (Date.now() - new Date(meta.generated_at)) / 86400000;
+  const generated = metas.map(m => m.generated_at).filter(Boolean).sort();
+  if (!generated.length) return;
+  const oldest = generated[0]; // flag if ANY agency's pull is stale
+  const ageDays = (Date.now() - new Date(oldest)) / 86400000;
   if (ageDays < 3) { el.innerHTML = ""; return; }
   el.innerHTML = `<div class="stale-banner">Data is ${Math.floor(ageDays)} days old — the daily pipeline
     may have missed a run. Check the <a href="https://github.com/sseidl88/kc-transit-dashboard/actions"
@@ -204,12 +262,14 @@ function fmtNum(n) {
   return n === null || n === undefined ? "—" : n.toLocaleString();
 }
 
-function renderStats(meta) {
+function renderStats(routes, metas) {
+  const totalTrips = routes.reduce((s, r) => s + r.trips_weekday, 0);
+  const newestGenerated = metas.map(m => m.generated_at).filter(Boolean).sort().pop();
   const tiles = [
-    { label: "Routes with weekday service", value: fmtNum(meta.route_count) },
-    { label: "Weekday trips / day (network-wide)", value: fmtNum(meta.total_weekday_trips) },
-    { label: "Schedule checked as of", value: meta.weekday_date_checked || "—" },
-    { label: "GTFS feed version", value: meta.feed_version || "unversioned" },
+    { label: "Routes with weekday service", value: fmtNum(routes.length) },
+    { label: "Weekday trips / day (network-wide)", value: fmtNum(totalTrips) },
+    { label: "Agencies covered", value: metas.map(m => m.agency).filter(Boolean).join(" + ") || "—" },
+    { label: "Schedule checked as of", value: metas[0]?.weekday_date_checked || "—" },
   ];
   document.getElementById("stat-row").innerHTML = tiles.map(t => `
     <div class="stat-tile">
@@ -217,7 +277,7 @@ function renderStats(meta) {
       <div class="label">${t.label}</div>
     </div>`).join("");
 
-  const updated = meta.generated_at ? new Date(meta.generated_at).toLocaleString() : "unknown";
+  const updated = newestGenerated ? new Date(newestGenerated).toLocaleString() : "unknown";
   document.getElementById("updated-line").textContent = `Last pulled ${updated}`;
 }
 
@@ -228,7 +288,7 @@ function renderLegend() {
 }
 
 const FREQUENT_MAX_HEADWAY = 15;
-let leafletMap, routeLayer, hubLayer, routeGeojson;
+let leafletMap, routeLayer, hubLayer, walkshedLayer, densityLayer, routeGeojson;
 
 function buildRouteLayer(geojson, frequentOnly) {
   if (routeLayer) leafletMap.removeLayer(routeLayer);
@@ -245,7 +305,7 @@ function buildRouteLayer(geojson, frequentOnly) {
         ? `${p.headway_minutes} min headway` : "headway unknown";
       lyr.bindPopup(
         `<b>${p.route_short_name ? p.route_short_name + " — " : ""}${p.route_long_name || p.route_id}</b><br>
-         <span class="tier">${p.route_type} · ${headway}</span>`
+         <span class="tier">${p.agency ? p.agency + " · " : ""}${p.route_type} · ${headway}</span>`
       );
       lyr.on("mouseover", () => lyr.setStyle({ weight: 6, opacity: 1 }));
       lyr.on("mouseout", () => lyr.setStyle({ weight: 3, opacity: 0.85 }));
@@ -265,14 +325,51 @@ function buildHubLayer(hubsGeojson) {
       fillColor: "#eda100",
       fillOpacity: 0.85,
     }).bindPopup(
-      `<b>${p.stop_name}</b><br><span class="hub-routes">${p.route_count} routes: ${p.routes.join(", ")}</span>`
+      `<b>${p.stop_name}</b><br><span class="hub-routes">${p.agency ? p.agency + " — " : ""}${p.route_count} routes: ${p.routes.join(", ")}</span>`
     ).addTo(hubLayer);
   }
 }
 
-function renderMap(geojson, hubsGeojson) {
+// Quarter-mile (~400m) circle around every stop on a frequent (<=15 min)
+// route. No street-network isochrone or real GIS lib involved — this is a
+// deliberately rough "walkshed" approximation. Where the shading DOESN'T
+// overlap is the closest thing here to a transit-desert map.
+function buildWalkshedLayer(stopsGeojson) {
+  walkshedLayer = L.layerGroup();
+  for (const f of (stopsGeojson.features || [])) {
+    if (!f.properties.frequent) continue;
+    const [lon, lat] = f.geometry.coordinates;
+    L.circle([lat, lon], {
+      radius: 400,
+      color: "none",
+      fillColor: "#eda100",
+      fillOpacity: 0.12,
+      renderer: L.canvas(),
+      interactive: false,
+    }).addTo(walkshedLayer);
+  }
+}
+
+// All weekday stops as small low-opacity dots — a cheap density visualization
+// (denser overlap reads darker) without a real heatmap plugin.
+function buildDensityLayer(stopsGeojson) {
+  densityLayer = L.layerGroup();
+  for (const f of (stopsGeojson.features || [])) {
+    const [lon, lat] = f.geometry.coordinates;
+    L.circleMarker([lat, lon], {
+      radius: 3,
+      color: "none",
+      fillColor: "#e34948",
+      fillOpacity: 0.25,
+      renderer: L.canvas(),
+      interactive: false,
+    }).addTo(densityLayer);
+  }
+}
+
+function renderMap(geojson, hubsGeojson, stopsGeojson) {
   routeGeojson = geojson;
-  leafletMap = L.map("map", { scrollWheelZoom: false }).setView([39.0997, -94.5786], 11);
+  leafletMap = L.map("map", { scrollWheelZoom: false, preferCanvas: true }).setView([39.0997, -94.5786], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -283,25 +380,41 @@ function renderMap(geojson, hubsGeojson) {
     return;
   }
 
-  buildRouteLayer(geojson, false);
+  const startFrequentOnly = new URLSearchParams(location.search).get("freq") === "1";
+  document.getElementById("frequent-only-toggle").checked = startFrequentOnly;
+  buildRouteLayer(geojson, startFrequentOnly);
   leafletMap.fitBounds(routeLayer.getBounds(), { padding: [16, 16] });
 
-  buildHubLayer(hubsGeojson || { features: [] });
+  buildHubLayer(hubsGeojson || emptyFC());
   hubLayer.addTo(leafletMap);
+
+  buildWalkshedLayer(stopsGeojson || emptyFC());
+  buildDensityLayer(stopsGeojson || emptyFC());
 
   document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
     buildRouteLayer(routeGeojson, e.target.checked);
+    setUrlParam("freq", e.target.checked ? "1" : null);
   });
   document.getElementById("hubs-toggle").addEventListener("change", (e) => {
     if (e.target.checked) hubLayer.addTo(leafletMap);
     else leafletMap.removeLayer(hubLayer);
+  });
+  document.getElementById("walkshed-toggle").addEventListener("change", (e) => {
+    document.getElementById("walkshed-note").style.display = e.target.checked ? "" : "none";
+    if (e.target.checked) walkshedLayer.addTo(leafletMap);
+    else leafletMap.removeLayer(walkshedLayer);
+  });
+  document.getElementById("density-toggle").addEventListener("change", (e) => {
+    if (e.target.checked) densityLayer.addTo(leafletMap);
+    else leafletMap.removeLayer(densityLayer);
   });
 }
 
 function trendItemHTML(entry, direction) {
   const sign = direction === "up" ? "+" : "";
   const cls = direction === "up" ? "up" : "down";
-  const name = entry.route_short_name ? `${entry.route_short_name} — ${entry.route_long_name}` : entry.route_long_name;
+  const label = entry.route_short_name ? `${entry.route_short_name} — ${entry.route_long_name}` : entry.route_long_name;
+  const name = entry.agency ? `${label} (${entry.agency})` : label;
   return `<div class="trend-item">
     <span class="name">${name}</span>
     <span class="delta ${cls}">${sign}${entry.pct_change}%</span>
@@ -323,7 +436,7 @@ function renderTrending(trending) {
     addRemEl.innerHTML = "";
     return;
   }
-  const routeName = (r) => `${r.route_short_name || r.route_id} — ${r.route_long_name}`;
+  const routeName = (r) => `${r.route_short_name || r.route_id} — ${r.route_long_name}${r.agency ? ` (${r.agency})` : ""}`;
   addRemEl.innerHTML = `
     <div class="trend-col">
       <h3>Routes added</h3>
@@ -391,24 +504,29 @@ function computeHistoricalDiff(baselineRoutes, currentRoutes) {
   return { up, down, added: stillAdded, discontinued: stillDiscontinued };
 }
 
-function renderHistorical(baseline) {
+function renderHistorical(baseline, kcataRoutes) {
   if (!baseline || !baseline.routes) return;
-  const diff = computeHistoricalDiff(baseline.routes, routesData);
+  // Deliberately KCATA-only: the 2020 archive never covered Johnson County
+  // Transit, so diffing against the merged multi-agency routesData would
+  // make every JCT route look like it was "added since 2020" — which is
+  // just wrong, it's a different agency that was never part of this
+  // comparison in the first place.
+  const diff = computeHistoricalDiff(baseline.routes, kcataRoutes);
   const section = document.getElementById("historical-section");
   section.style.display = "";
 
   document.getElementById("historical-heading").textContent =
-    `Network change: ${baseline.label} → today`;
+    `Network change: ${baseline.label} → today (KCATA only)`;
   document.getElementById("historical-note").textContent =
     `KCATA's schedule archive only goes back to a single point via the Internet Archive (no dense ` +
     `historical feed history is freely available), so this compares that one snapshot to today rather ` +
-    `than a continuous timeline.`;
+    `than a continuous timeline. Scoped to KCATA — the 2020 archive doesn't cover Johnson County Transit.`;
 
   const thenTrips = baseline.routes.reduce((s, r) => s + r.trips_weekday, 0);
-  const nowTrips = routesData.reduce((s, r) => s + r.trips_weekday, 0);
+  const nowTrips = kcataRoutes.reduce((s, r) => s + r.trips_weekday, 0);
   document.getElementById("historical-stats").innerHTML = [
     { label: `Routes (${baseline.label})`, value: fmtNum(baseline.routes.length) },
-    { label: "Routes (today)", value: fmtNum(routesData.length) },
+    { label: "Routes (today)", value: fmtNum(kcataRoutes.length) },
     { label: `Weekday trips (${baseline.label})`, value: fmtNum(thenTrips) },
     { label: "Weekday trips (today)", value: fmtNum(nowTrips) },
   ].map(t => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
@@ -456,6 +574,69 @@ function tierDotColor(tier) {
   return hit ? hit.color : "#898781";
 }
 
+// --- Council-district coverage: plain-JS point-in-polygon (ray casting), no
+// GIS library. Handles Polygon/MultiPolygon; ignores interior rings (holes)
+// — an acceptable simplification for KCMO's 6 council district shapes, which
+// aren't donut-shaped. Stops outside every district (e.g. all of Johnson
+// County Transit's service area) simply match nothing, so this naturally
+// stays KCMO-scoped without an explicit agency filter.
+function pointInRing(lat, lon, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    const intersects = ((yi > lat) !== (yj > lat)) &&
+      (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+function pointInGeometry(lat, lon, geometry) {
+  const polys = geometry.type === "MultiPolygon" ? geometry.coordinates : [geometry.coordinates];
+  return polys.some(poly => poly.length && pointInRing(lat, lon, poly[0]));
+}
+function findDistrict(lat, lon, districtsGeojson) {
+  for (const f of districtsGeojson.features) {
+    if (pointInGeometry(lat, lon, f.geometry)) return f.properties.district;
+  }
+  return null;
+}
+
+function renderDistrictCoverage(stopsGeojson, districtsGeojson) {
+  if (!districtsGeojson || !districtsGeojson.features || districtsGeojson.features.length === 0) return;
+  const counts = new Map(); // district -> { frequent, total }
+  for (const f of (stopsGeojson.features || [])) {
+    const [lon, lat] = f.geometry.coordinates;
+    const district = findDistrict(lat, lon, districtsGeojson);
+    if (!district) continue;
+    const c = counts.get(district) || { frequent: 0, total: 0 };
+    c.total += 1;
+    if (f.properties.frequent) c.frequent += 1;
+    counts.set(district, c);
+  }
+  if (counts.size === 0) return; // e.g. this deploy's stops are all outside KCMO
+
+  document.getElementById("district-section").style.display = "";
+  const rows = [...counts.entries()].sort((a, b) => b[1].frequent - a[1].frequent);
+  document.getElementById("district-tbody").innerHTML = rows.map(([district, c]) => `
+    <tr>
+      <td>${district}</td>
+      <td class="num">${fmtNum(c.frequent)}</td>
+      <td class="num">${fmtNum(c.total)}</td>
+      <td class="num">${c.total ? ((c.frequent / c.total) * 100).toFixed(0) : 0}%</td>
+    </tr>`).join("");
+}
+
+// --- Shareable URL state for the map's frequent-only filter and the
+// comparison picker, mirroring the nba-visual project's ?league=&team=
+// pattern. Writes with replaceState so toggling filters doesn't spam
+// browser history.
+function setUrlParam(key, value) {
+  const url = new URL(location.href);
+  if (value === null || value === undefined || value === "") url.searchParams.delete(key);
+  else url.searchParams.set(key, value);
+  history.replaceState(null, "", url);
+}
+
 let sortState = { key: "trips_weekday", dir: -1 };
 let searchQuery = "";
 
@@ -477,6 +658,7 @@ function renderTable() {
     <tr>
       <td>${r.route_short_name || r.route_id}</td>
       <td>${r.route_long_name}</td>
+      <td>${r.agency || "—"}</td>
       <td><span class="tier-dot" style="background:${tierDotColor(r.frequency_tier)}"></span>${r.route_type}</td>
       <td class="num">${fmtNum(r.trips_weekday)}</td>
       <td class="num">${r.headway_minutes ?? "—"}</td>
@@ -507,25 +689,33 @@ const COMPARE_METRICS = [
   { key: "route_length_miles", label: "Route length (miles)" },
 ];
 
+// route_id alone isn't unique once two agencies' route lists are merged
+// (independent numbering schemes could collide by coincidence), so the
+// compare-select value is a composite "agency_id:route_id" key.
+function routeUid(r) { return `${r.agency_id}:${r.route_id}`; }
+
 function populateCompareSelects() {
   const opts = routesData.map(r =>
-    `<option value="${r.route_id}">${r.route_short_name ? r.route_short_name + " — " : ""}${r.route_long_name}</option>`
+    `<option value="${routeUid(r)}">[${r.agency_id}] ${r.route_short_name ? r.route_short_name + " — " : ""}${r.route_long_name}</option>`
   ).join("");
   const a = document.getElementById("route-a");
   const b = document.getElementById("route-b");
   a.innerHTML = opts;
   b.innerHTML = opts;
-  if (routesData.length > 1) {
-    a.selectedIndex = 0;
-    b.selectedIndex = 1;
-  }
-  a.addEventListener("change", renderCompare);
-  b.addEventListener("change", renderCompare);
+  const params = new URLSearchParams(location.search);
+  const wantA = params.get("routeA"), wantB = params.get("routeB");
+  if (wantA && routesData.some(r => routeUid(r) === wantA)) a.value = wantA;
+  else if (routesData.length > 0) a.selectedIndex = 0;
+  if (wantB && routesData.some(r => routeUid(r) === wantB)) b.value = wantB;
+  else if (routesData.length > 1) b.selectedIndex = 1;
+
+  a.addEventListener("change", () => { setUrlParam("routeA", a.value); renderCompare(); });
+  b.addEventListener("change", () => { setUrlParam("routeB", b.value); renderCompare(); });
 }
 
 function renderCompare() {
-  const routeA = routesData.find(r => r.route_id === document.getElementById("route-a").value);
-  const routeB = routesData.find(r => r.route_id === document.getElementById("route-b").value);
+  const routeA = routesData.find(r => routeUid(r) === document.getElementById("route-a").value);
+  const routeB = routesData.find(r => routeUid(r) === document.getElementById("route-b").value);
   if (!routeA || !routeB) return;
 
   document.getElementById("compare-grid").innerHTML = COMPARE_METRICS.map(m => {
@@ -540,7 +730,7 @@ function renderCompare() {
     };
     const row = (route, v) => `
       <div class="compare-bar-row">
-        <span class="rname">${route.route_short_name || route.route_id}</span>
+        <span class="rname">[${route.agency_id}] ${route.route_short_name || route.route_id}</span>
         <div class="compare-bar-track"><div class="compare-bar-fill" style="width:${barLen(v)}%;background:var(--series-1)"></div></div>
         <span class="rval">${v ?? "—"}</span>
       </div>`;
@@ -555,26 +745,47 @@ function renderCompare() {
   }).join("");
 }
 
+function mergeFeatureCollections(collections) {
+  return { type: "FeatureCollection", features: collections.flatMap(c => c.features || []) };
+}
+
 async function init() {
   initThemeToggle();
   try {
-    const [payload, geojson, hubsGeojson, trending, baseline] = await Promise.all([
-      loadJSON("data/routes.json"),
-      loadJSON("data/routes.geojson").catch(() => ({ type: "FeatureCollection", features: [] })),
-      loadJSON("data/hubs.geojson").catch(() => ({ type: "FeatureCollection", features: [] })),
-      loadJSON("data/trending.json").catch(() => ({ up: [], down: [], added: [], discontinued: [] })),
-      loadJSON("data/baseline_2020.json").catch(() => null),
-    ]);
-    routesData = payload.routes || [];
-    metaData = payload.meta || {};
+    const bundles = (await Promise.all(
+      AGENCIES.map(agency => loadAgencyBundle(agency).catch(err => {
+        console.warn(`Skipping ${agency.name}: ${err}`);  // e.g. jocounty/ 404s before its first Actions run
+        return null;
+      }))
+    )).filter(Boolean);
 
-    renderStats(metaData);
-    renderStaleBanner(metaData);
+    if (bundles.length === 0) throw new Error("No agency data available");
+
+    const baseline = await loadJSON("data/baseline_2020.json").catch(() => null);
+    const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
+
+    routesData = bundles.flatMap(b => b.routes);
+    kcataRoutesData = (bundles.find(b => b.agency.id === "kcata") || {}).routes || [];
+    agencyMetas = bundles.map(b => ({ ...b.meta, agency: b.agency.name }));
+
+    const mergedGeojson = mergeFeatureCollections(bundles.map(b => b.geojson));
+    const mergedHubs = mergeFeatureCollections(bundles.map(b => b.hubs));
+    const mergedStops = mergeFeatureCollections(bundles.map(b => b.stops));
+    const mergedTrending = {
+      up: bundles.flatMap(b => b.trending.up || []),
+      down: bundles.flatMap(b => b.trending.down || []),
+      added: bundles.flatMap(b => b.trending.added || []),
+      discontinued: bundles.flatMap(b => b.trending.discontinued || []),
+    };
+
+    renderStats(routesData, agencyMetas);
+    renderStaleBanner(agencyMetas);
     renderLegend();
-    renderMap(geojson, hubsGeojson);
-    renderTrending(trending);
-    renderHistorical(baseline);
+    renderMap(mergedGeojson, mergedHubs, mergedStops);
+    renderTrending(mergedTrending);
+    renderHistorical(baseline, kcataRoutesData);
     renderEquity();
+    renderDistrictCoverage(mergedStops, districtsGeojson);
     renderTable();
     wireSorting();
     populateCompareSelects();

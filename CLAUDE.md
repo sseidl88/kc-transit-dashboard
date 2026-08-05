@@ -1,6 +1,7 @@
 # kc-transit-dashboard
 
-GitHub Pages dashboard covering KCATA/RideKC scheduled transit service (Kansas City).
+GitHub Pages dashboard covering scheduled transit service for two RideKC-branded
+agencies: KCATA and RideKC Johnson County Transit (Kansas City metro).
 
 **Repo:** sseidl88/kc-transit-dashboard
 **Live site:** GitHub Pages serving from `docs/` on `main` branch
@@ -50,16 +51,56 @@ GitHub Pages dashboard covering KCATA/RideKC scheduled transit service (Kansas C
 ## Architecture
 
 ```
-KCATA GTFS static zip → kc_transit_update.py (GitHub Actions daily cron)
-                       → JSON/GeoJSON committed to docs/data/
-                       → GitHub Pages serves docs/ as a static site
-                       → docs/index.html reads data via fetch()
+Agency GTFS static zips → kc_transit_update.py --agency {kcata,jocounty} (daily cron, once per agency)
+                         → JSON/GeoJSON committed to docs/data/ (kcata) and docs/data/jocounty/ (JCT)
+                         → GitHub Pages serves docs/ as a static site
+                         → docs/index.html fetches both agencies' data and merges client-side
 ```
 
 - No build step — vanilla JS inline in `docs/index.html`, Leaflet loaded via CDN
   for the map, styles in `docs/style.css`.
 - JSON files in the repo are the database — same pattern as the nba-visual project.
-- Workflow: `.github/workflows/daily-update.yml` — cron `0 11 * * *` + `workflow_dispatch`.
+- Workflow: `.github/workflows/daily-update.yml` — cron `0 11 * * *` + `workflow_dispatch`,
+  runs the pipeline once per agency in `AGENCIES` (currently 2 steps).
+
+---
+
+## Multi-agency (`AGENCIES` in `kc_transit_update.py`)
+
+Two RideKC-branded agencies actually have an open, reachable GTFS feed:
+
+- **kcata** → `docs/data/` (the original, already-live location — kept there for
+  backward compatibility with existing fetches/caches, not moved to `docs/data/kcata/`)
+- **jocounty** (RideKC Johnson County Transit / "The JO") → `docs/data/jocounty/`,
+  feed hosted on `data.trilliumtransit.com` (modern, reachable directly — unlike
+  KCATA's legacy host — but still routed through Transitland by default for
+  consistency; onestop_id `f-9yum-thejo`)
+
+**Unified Government Transit and IndeBus are not included** — checked every
+transit operator Transitland has indexed within 40km of downtown KC
+(`GET /api/v2/rest/operators?lat=...&lon=...&radius=40000`) and neither
+publishes a discoverable GTFS feed there. Not a bug, just genuinely unavailable
+data — same category of finding as the real-time/ridership gaps above. If either
+ever publishes one, add it to `AGENCIES` the same way `jocounty` was added.
+
+Each agency gets its own `history.json`/`trending.json` (a real Johnson County
+Transit service change and a KCATA one are unrelated events, shouldn't be
+compared against each other). `docs/index.html` fetches every agency in
+`AGENCIES` (client-side `loadAgencyBundle()`), tags every route/feature with
+`agency`/`agency_id`, and merges for the map/table/compare/equity views. Missing
+per-agency files (e.g. before `jocounty`'s first Actions run) are caught and
+skipped per-agency, not fatal to the whole page.
+
+**The 2020 historical backfill stays KCATA-only, deliberately** — the Wayback
+Machine snapshot never covered Johnson County Transit, so `renderHistorical()`
+diffs the baseline against `kcataRoutesData` specifically, not the merged
+`routesData` — otherwise every JCT route would wrongly show up as "added since
+2020."
+
+Route IDs aren't unique across agencies (independent numbering schemes could
+coincidentally collide), so anywhere routes from different agencies might sit
+in the same list — the compare-tool `<select>`s — the JS uses a composite
+`agency_id:route_id` key (`routeUid()`), not bare `route_id`.
 
 ---
 
@@ -85,6 +126,11 @@ GTFS feed: `http://www.kc-metro.com/gtf/google_transit.zip` (KCATA's official fe
   `docs/style.css` header comment and `FREQUENCY_TIERS` in the script). The map
   itself doesn't need a dark-mode variant of these colors since OSM tiles are
   always light regardless of page theme.
+- `docs/data/stops.geojson` — every weekday-served stop, each flagged
+  `"frequent": true/false` (reachable by at least one ≤15-min route or not).
+  Powers the frontend's walkshed/density layers and the council-district
+  coverage table — deliberately a superset of `hubs.geojson` (which only keeps
+  3+-route stops) rather than a separate computation.
 
 **History / trending** (`docs/data/history.json`, `docs/data/trending.json`):
 Because GTFS static changes a handful of times a year (KCATA "sign-ups"), not
@@ -156,8 +202,13 @@ revisiting, not worth blocking on.
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
 push/PR) covers the time/distance helpers, calendar exception handling, both
 bugs above as explicit regression tests, `compute_trending()`'s up/down/added/
-discontinued/reconciliation logic, and an end-to-end `build_dataset()` pass
-against a small synthetic GTFS zip built in-memory (`_make_fixture_zip()`).
+discontinued/reconciliation logic, the stops/hubs layers (frequent-flag
+correctness, the 3-route hub threshold), `AGENCIES` config sanity, and an
+end-to-end `build_dataset()` pass against small synthetic GTFS zips built
+in-memory. The frontend's point-in-polygon logic isn't covered here (it's
+pure JS with no Python equivalent) — it was validated ad hoc against the real
+`stops.geojson`/`kcmo_council_districts.geojson` output via Node before
+shipping, not via an automated test.
 
 Separately: the `kc-metro.com` feed host was unreachable from the sandboxed dev
 environment during initial build (works fine from GitHub Actions' runners).
@@ -168,29 +219,54 @@ end-to-end runs outside the test suite.
 
 ## Frontend (`docs/index.html`)
 
-- Fetches `data/routes.json` (metrics + meta), `data/routes.geojson` (route
-  lines), `data/hubs.geojson` (transfer-hub points), `data/trending.json`, and
-  `data/baseline_2020.json` — all with graceful fallback if a file 404s (e.g.
-  before the first Actions run has ever committed data, or `baseline_2020.json`
-  if it's ever removed).
+- Per agency in `AGENCIES`, fetches `routes.json`/`routes.geojson`/`hubs.geojson`/
+  `stops.geojson`/`trending.json` (`loadAgencyBundle()`), plus once each:
+  `data/baseline_2020.json` and `data/kcmo_council_districts.geojson` — all with
+  graceful fallback if a file 404s (e.g. before an agency's first Actions run,
+  or if `baseline_2020.json`/the districts file is ever removed).
 - Map: Leaflet + OpenStreetMap tiles (no API key), routes colored by frequency
-  tier, popup per route on click, hover to highlight. Two toggles:
-  "Frequent network only" (rebuilds the route layer filtered to
-  `headway_minutes <= 15`, see `FREQUENT_MAX_HEADWAY`) and transfer hubs
-  (stops served by 3+ weekday routes, computed server-side in
-  `build_dataset()`, shown/hidden without rebuilding).
+  tier, popup per route on click, hover to highlight. Four toggles:
+  - "Frequent network only" — rebuilds the route layer filtered to
+    `headway_minutes <= 15` (`FREQUENT_MAX_HEADWAY`); state syncs to `?freq=1`.
+  - Transfer hubs — stops served by 3+ weekday routes (server-side in
+    `build_dataset()`), shown/hidden without rebuilding.
+  - Frequent-network walkshed — a ¼-mile (400m) `L.circle` around every
+    `stops.geojson` feature flagged `frequent`. Deliberately not a real
+    street-network isochrone or a GIS-library buffer/intersection — just
+    Leaflet drawing circles — since that's enough to make gaps in coverage
+    visually obvious without adding a geometry dependency (e.g. shapely) to
+    the pipeline.
+  - Stop density — every stop as a small low-opacity dot; overlap reads as
+    density without a real heatmap plugin.
+- "Frequent-network access by council district" section: pure client-side
+  point-in-polygon (ray casting, `pointInRing()`/`pointInGeometry()`) against
+  `data/kcmo_council_districts.geojson` (Kansas City, MO's 6 council districts,
+  downloaded once from Open Data KC's Socrata API — `data.kcmo.org/resource/
+  5qar-bf4m.geojson` — and committed as static reference data, same treatment
+  as `baseline_2020.json`; regenerate only if KCMO redistricts). No GIS library;
+  ignores interior rings (holes), an acceptable simplification since none of
+  KCMO's 6 districts are donut-shaped. Johnson County Transit's stops mostly
+  fall outside every KCMO district and are naturally excluded by that geometry
+  test alone — no explicit agency filter needed. Table hides itself
+  (`display:none` by default) if nothing matches, so an empty result reads as
+  "no data" rather than a broken section.
 - "Network change" section: 2020-vs-today comparison computed client-side by
   `computeHistoricalDiff()` — deliberately mirrors `compute_trending()` in
   Python rather than shipping a precomputed diff file, so it always reflects
   whatever `routes.json` currently has without needing a backend regeneration
-  step.
+  step. **KCATA-only** — see "Multi-agency" above for why.
 - "Weekday vs. weekend" equity section: routes ranked by
   `(trips_saturday + trips_sunday) / 2 / trips_weekday`, purely client-side
-  from data already in `routes.json` — no backend change needed for this one.
+  from data already in `routes.json` (merged across both agencies — a genuine
+  regional equity view, unlike the KCATA-only historical section).
 - Route comparison mirrors the nba-visual "player comparison" pattern — two
   `<select>`s, thin comparison bars per metric. Headway is inverted when sizing
   its bar (lower minutes = more frequent = should read as the "bigger" bar).
+  Selection state round-trips through `?routeA=`/`?routeB=` (composite
+  `agency_id:route_id` values, `routeUid()`) via `setUrlParam()` — same
+  shareable-link pattern nba-visual uses for `?league=&team=`.
 - Table is client-side sortable by clicking any header (`sortState`) and
   filterable via the search box (`searchQuery`) — both re-run `renderTable()`.
 - Theme toggle cycles system/light/dark via `data-theme` on `<html>`, persisted
-  in `localStorage`; stale-data banner fires if `meta.generated_at` is >3 days old.
+  in `localStorage`; stale-data banner fires if any agency's `generated_at` is
+  >3 days old.

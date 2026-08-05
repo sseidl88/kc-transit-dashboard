@@ -26,18 +26,34 @@ from pathlib import Path
 
 import requests
 
-# KCATA's own feed host (a legacy IIS box) refuses connections from
-# cloud/datacenter IP ranges — confirmed with hard connect-timeouts from both
-# GitHub Actions runners and a cloud dev sandbox, consistently, not a fluke.
-# Transitland mirrors the same feed on infrastructure that's actually
-# reachable, so that's the default when an API key is available. See
-# CLAUDE.md for how to get a free key.
-GTFS_URL = "http://www.kc-metro.com/gtf/google_transit.zip"
-TRANSITLAND_URL = "https://transit.land/api/v2/rest/feeds/f-9yu-kcata/download_latest_feed_version"
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "docs" / "data"
-HISTORY_PATH = DATA_DIR / "history.json"
 HISTORY_MAX_ENTRIES = 60
+TRANSITLAND_DOWNLOAD_URL = "https://transit.land/api/v2/rest/feeds/{onestop_id}/download_latest_feed_version"
+
+# Two RideKC-branded agencies with an open GTFS feed we could actually reach.
+# Unified Government Transit and IndeBus don't publish a discoverable GTFS
+# feed anywhere in Transitland's index (checked every operator within 40km of
+# downtown KC) — not included, not a bug. KCATA's own feed host (a legacy IIS
+# box) refuses connections from cloud/datacenter IP ranges — confirmed with
+# hard connect-timeouts from both GitHub Actions runners and a cloud dev
+# sandbox, consistently, not a fluke — so both agencies default to pulling
+# via Transitland's mirror when TRANSITLAND_API_KEY is set, falling back to
+# the direct URL otherwise (works outside cloud CI/sandboxes).
+AGENCIES = {
+    "kcata": {
+        "name": "KCATA",
+        "direct_url": "http://www.kc-metro.com/gtf/google_transit.zip",
+        "transitland_onestop_id": "f-9yu-kcata",
+        "out_dir": DATA_DIR,  # root docs/data/ — the original, already-live location
+    },
+    "jocounty": {
+        "name": "RideKC Johnson County Transit",
+        "direct_url": "https://data.trilliumtransit.com/gtfs/johnsoncounty-ks-us/johnsoncounty-ks-us.zip",
+        "transitland_onestop_id": "f-9yum-thejo",
+        "out_dir": DATA_DIR / "jocounty",
+    },
+}
 
 ROUTE_TYPE_NAMES = {
     "0": "Streetcar",
@@ -71,7 +87,7 @@ def log(msg):
 # GTFS download + parsing
 # ---------------------------------------------------------------------------
 
-def download_gtfs(url, local_zip=None, attempts=5, backoff_seconds=30):
+def download_gtfs(agency, local_zip=None, attempts=5, backoff_seconds=30):
     if local_zip:
         log(f"Using local GTFS zip: {local_zip}")
         data = Path(local_zip).read_bytes()
@@ -79,12 +95,13 @@ def download_gtfs(url, local_zip=None, attempts=5, backoff_seconds=30):
 
     transitland_key = os.environ.get("TRANSITLAND_API_KEY")
     if transitland_key:
-        url = TRANSITLAND_URL
+        url = TRANSITLAND_DOWNLOAD_URL.format(onestop_id=agency["transitland_onestop_id"])
         params = {"apikey": transitland_key}
-        log("Using Transitland mirror (TRANSITLAND_API_KEY set)")
+        log(f"Using Transitland mirror for {agency['name']} (TRANSITLAND_API_KEY set)")
     else:
+        url = agency["direct_url"]
         params = None
-        log("No TRANSITLAND_API_KEY set — falling back to KCATA's direct feed URL "
+        log(f"No TRANSITLAND_API_KEY set — falling back to {agency['name']}'s direct feed URL "
             "(likely unreachable from cloud CI; see CLAUDE.md)")
 
     last_error = None
@@ -370,6 +387,7 @@ def build_dataset(zf, today):
 
     routes_out = []
     features = []
+    route_headway = {}  # route_id -> headway_minutes, for the stops layer's "frequent" flag
     for row in routes_rows:
         route_id = row.get("route_id")
         weekday_trips = trips_weekday_count.get(route_id, 0)
@@ -382,6 +400,7 @@ def build_dataset(zf, today):
             diffs = [(b - a) / 60 for a, b in zip(start_times, start_times[1:]) if b > a]
             if diffs:
                 headway_minutes = round(statistics.median(diffs), 1)
+        route_headway[route_id] = headway_minutes
 
         span = route_span.get(route_id, [None, None])
         tier_label, tier_color = frequency_tier(headway_minutes)
@@ -450,6 +469,23 @@ def build_dataset(zf, today):
             "geometry": {"type": "Point", "coordinates": [lon, lat]},
         })
 
+    # All weekday-served stops, for the density/walkshed layers. "frequent"
+    # marks a stop reachable by at least one <=15-min route — the frontend
+    # buffers just those to approximate a frequent-network walkshed without
+    # needing a real GIS/geometry library.
+    stop_features = []
+    for stop_id, route_ids in stop_routes.items():
+        if stop_id not in stop_coords:
+            continue
+        name, lat, lon = stop_coords[stop_id]
+        is_frequent = any((route_headway.get(rid) or float("inf")) <= 15 for rid in route_ids)
+        stop_features.append({
+            "type": "Feature",
+            "properties": {"stop_id": stop_id, "stop_name": name,
+                            "route_count": len(route_ids), "frequent": is_frequent},
+            "geometry": {"type": "Point", "coordinates": [lon, lat]},
+        })
+
     feed_version = None
     if feed_info_rows:
         feed_version = feed_info_rows[0].get("feed_version")
@@ -466,7 +502,8 @@ def build_dataset(zf, today):
 
     geojson = {"type": "FeatureCollection", "features": features}
     hubs_geojson = {"type": "FeatureCollection", "features": hub_features}
-    return routes_out, geojson, hubs_geojson, meta
+    stops_geojson = {"type": "FeatureCollection", "features": stop_features}
+    return routes_out, geojson, hubs_geojson, stops_geojson, meta
 
 
 # ---------------------------------------------------------------------------
@@ -545,10 +582,10 @@ def compute_trending(previous_routes, current_routes):
     return up, down, still_added, still_discontinued
 
 
-def update_history(routes_out, today_iso, feed_last_modified):
+def update_history(routes_out, today_iso, feed_last_modified, history_path):
     history = []
-    if HISTORY_PATH.exists():
-        history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+    if history_path.exists():
+        history = json.loads(history_path.read_text(encoding="utf-8"))
 
     trending_up, trending_down, added, discontinued = [], [], [], []
     new_signature = route_signature(routes_out)
@@ -584,7 +621,8 @@ def update_history(routes_out, today_iso, feed_last_modified):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--gtfs-url", default=GTFS_URL)
+    parser.add_argument("--agency", default="kcata", choices=sorted(AGENCIES),
+                         help="Which agency's feed to pull (see AGENCIES)")
     parser.add_argument("--local-zip", default=None, help="Use a local GTFS zip instead of downloading")
     parser.add_argument("--as-of-date", default=None,
                          help="YYYY-MM-DD to anchor the representative-date search to "
@@ -597,18 +635,21 @@ def main():
                          help="Human-readable label stored in the baseline file, e.g. 'November 2020'")
     args = parser.parse_args()
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    agency = AGENCIES[args.agency]
+    out_dir = agency["out_dir"]
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    content, last_modified = download_gtfs(args.gtfs_url, args.local_zip)
+    content, last_modified = download_gtfs(agency, args.local_zip)
     as_of = datetime.strptime(args.as_of_date, "%Y-%m-%d").date() if args.as_of_date \
         else datetime.now(timezone.utc).date()
 
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
-        routes_out, geojson, hubs_geojson, meta = build_dataset(zf, as_of)
+        routes_out, geojson, hubs_geojson, stops_geojson, meta = build_dataset(zf, as_of)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     meta["generated_at"] = now_iso
     meta["feed_last_modified"] = last_modified
+    meta["agency"] = agency["name"]
 
     if args.baseline_out:
         Path(args.baseline_out).write_text(json.dumps({
@@ -620,16 +661,17 @@ def main():
             f"({meta['route_count']} routes, {meta['total_weekday_trips']} weekday trips)")
         return
 
-    (DATA_DIR / "routes.json").write_text(
+    (out_dir / "routes.json").write_text(
         json.dumps({"meta": meta, "routes": routes_out}, indent=2), encoding="utf-8")
-    (DATA_DIR / "routes.geojson").write_text(json.dumps(geojson), encoding="utf-8")
-    (DATA_DIR / "hubs.geojson").write_text(json.dumps(hubs_geojson), encoding="utf-8")
+    (out_dir / "routes.geojson").write_text(json.dumps(geojson), encoding="utf-8")
+    (out_dir / "hubs.geojson").write_text(json.dumps(hubs_geojson), encoding="utf-8")
+    (out_dir / "stops.geojson").write_text(json.dumps(stops_geojson), encoding="utf-8")
 
     history, trending_up, trending_down, added, discontinued = update_history(
-        routes_out, as_of.isoformat(), last_modified)
-    HISTORY_PATH.write_text(json.dumps(history, indent=2), encoding="utf-8")
+        routes_out, as_of.isoformat(), last_modified, out_dir / "history.json")
+    (out_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
-    (DATA_DIR / "trending.json").write_text(json.dumps({
+    (out_dir / "trending.json").write_text(json.dumps({
         "as_of": now_iso,
         "up": trending_up,
         "down": trending_down,
@@ -637,9 +679,9 @@ def main():
         "discontinued": discontinued,
     }, indent=2), encoding="utf-8")
 
-    (DATA_DIR / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    (out_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    log(f"Done. {meta['route_count']} routes, {meta['total_weekday_trips']} weekday trips.")
+    log(f"Done: {agency['name']}. {meta['route_count']} routes, {meta['total_weekday_trips']} weekday trips.")
 
 
 if __name__ == "__main__":

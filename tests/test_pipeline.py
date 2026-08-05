@@ -199,7 +199,7 @@ def _make_fixture_zip():
 
 def test_build_dataset_computes_expected_metrics():
     zf = _make_fixture_zip()
-    routes_out, geojson, hubs_geojson, meta = kctu.build_dataset(zf, date(2026, 8, 5))  # a Wednesday
+    routes_out, geojson, hubs_geojson, stops_geojson, meta = kctu.build_dataset(zf, date(2026, 8, 5))  # a Wednesday
 
     assert len(routes_out) == 1
     r = routes_out[0]
@@ -213,6 +213,50 @@ def test_build_dataset_computes_expected_metrics():
     assert len(geojson["features"]) == 1
     assert meta["route_count"] == 1
     assert meta["total_weekday_trips"] == 3
+
+
+def test_build_dataset_stops_and_hubs_layers():
+    """A stop served only by an infrequent route shouldn't be flagged
+    'frequent'; a stop served by 3+ routes should show up as a transfer hub;
+    a stop served by just 2 routes (common, not very meaningful) shouldn't."""
+    files = {
+        "routes.txt": "route_id,route_short_name,route_long_name,route_type\n"
+                      "R1,F,Frequent Route,3\nR2,I,Infrequent Route,3\nR3,I2,Infrequent Route 2,3\n",
+        "calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+                        "WD,1,1,1,1,1,0,0,20260101,20261231\n",
+        "calendar_dates.txt": "service_id,date,exception_type\n",
+        "shapes.txt": "",
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n"
+                     "HUB,Hub Stop,39.05,-94.58\nLONELY,Lonely Stop,39.10,-94.60\n",
+        # R1 is frequent (10-min headway) and stops at HUB only.
+        # R2 and R3 are infrequent (60-min headway) and both also stop at HUB
+        # (making it a 3-route hub) plus LONELY (a 2-route, non-hub stop).
+        "trips.txt": "route_id,service_id,trip_id,direction_id,shape_id\n"
+                     "R1,WD,T0,0,\nR1,WD,T1,0,\nR1,WD,T2,0,\n"
+                     "R2,WD,T3,0,\nR2,WD,T4,0,\n"
+                     "R3,WD,T5,0,\nR3,WD,T6,0,\n",
+        "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+                          "T0,06:00:00,06:00:00,HUB,1\nT1,06:10:00,06:10:00,HUB,1\nT2,06:20:00,06:20:00,HUB,1\n"
+                          "T3,07:00:00,07:00:00,HUB,1\nT3,07:05:00,07:05:00,LONELY,2\n"
+                          "T4,08:00:00,08:00:00,HUB,1\nT4,08:05:00,08:05:00,LONELY,2\n"
+                          "T5,07:00:00,07:00:00,HUB,1\nT5,07:05:00,07:05:00,LONELY,2\n"
+                          "T6,08:00:00,08:00:00,HUB,1\nT6,08:05:00,08:05:00,LONELY,2\n",
+    }
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf_write:
+        for name, content in files.items():
+            zf_write.writestr(name, content)
+    buf.seek(0)
+    zf = zipfile.ZipFile(buf)
+
+    _, _, hubs_geojson, stops_geojson, _ = kctu.build_dataset(zf, date(2026, 8, 5))  # a Wednesday
+
+    stops_by_id = {f["properties"]["stop_id"]: f["properties"] for f in stops_geojson["features"]}
+    assert stops_by_id["HUB"]["frequent"] is True   # served by R1 (10-min headway) among others
+    assert stops_by_id["LONELY"]["frequent"] is False  # only served by infrequent R2/R3
+
+    hub_ids = {f["properties"]["stop_id"] for f in hubs_geojson["features"]}
+    assert hub_ids == {"HUB"}  # 3 routes converge here; LONELY only has 2
 
 
 def test_build_dataset_skips_routes_with_no_weekday_service():
@@ -240,6 +284,23 @@ def test_build_dataset_skips_routes_with_no_weekday_service():
     buf.seek(0)
     zf = zipfile.ZipFile(buf)
 
-    routes_out, _, _, meta = kctu.build_dataset(zf, date(2026, 8, 5))  # a Wednesday
+    routes_out, _, _, _, meta = kctu.build_dataset(zf, date(2026, 8, 5))  # a Wednesday
     assert [r["route_id"] for r in routes_out] == ["R1"]
     assert meta["route_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Multi-agency config
+# ---------------------------------------------------------------------------
+
+def test_agencies_config_well_formed():
+    assert "kcata" in kctu.AGENCIES
+    for agency_id, agency in kctu.AGENCIES.items():
+        assert agency["name"]
+        assert agency["direct_url"].startswith("http")
+        assert agency["transitland_onestop_id"].startswith("f-")
+        assert agency["out_dir"] is not None
+    # kcata must stay at the original root data dir — it's the already-live
+    # location docs/index.html's default fetches (and GitHub Pages caches) expect.
+    assert kctu.AGENCIES["kcata"]["out_dir"] == kctu.DATA_DIR
+    assert kctu.AGENCIES["jocounty"]["out_dir"] != kctu.DATA_DIR

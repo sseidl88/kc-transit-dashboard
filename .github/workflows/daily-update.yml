@@ -23,10 +23,15 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run KC transit data pipeline
+      - name: Run KCATA data pipeline
         env:
           TRANSITLAND_API_KEY: ${{ secrets.TRANSITLAND_API_KEY }}
-        run: python kc_transit_update.py
+        run: python kc_transit_update.py --agency kcata
+
+      - name: Run Johnson County Transit data pipeline
+        env:
+          TRANSITLAND_API_KEY: ${{ secrets.TRANSITLAND_API_KEY }}
+        run: python kc_transit_update.py --agency jocounty
 
       - name: Commit updated data
         run: |
