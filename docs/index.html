@@ -32,10 +32,29 @@
     <h2>Route network</h2>
     <p class="section-note">Every weekday route drawn from its scheduled shape, colored by how frequently it runs.</p>
     <div class="map-controls">
+      <div class="route-filter">
+        <button class="route-filter-btn" id="route-filter-toggle" type="button" aria-expanded="false">
+          Routes: <span id="route-filter-summary">All</span> ▾
+        </button>
+        <div class="route-filter-panel" id="route-filter-panel" hidden>
+          <input class="search-input" id="route-filter-search" type="search" placeholder="Search routes…" style="max-width:none; margin-bottom:0.5rem">
+          <div class="route-filter-actions">
+            <button type="button" data-action="all">All</button>
+            <button type="button" data-action="none">None</button>
+            <button type="button" data-action="streetcar">Streetcar only</button>
+          </div>
+          <div class="route-filter-list" id="route-filter-list"></div>
+        </div>
+      </div>
       <label><input type="checkbox" id="frequent-only-toggle"> Frequent network only (≤15 min)</label>
-      <label><input type="checkbox" id="hubs-toggle" checked> Show transfer hubs (3+ routes)</label>
-      <label><input type="checkbox" id="walkshed-toggle"> Frequent-network walkshed (¼ mi)</label>
-      <label><input type="checkbox" id="density-toggle"> Stop density</label>
+      <label class="map-overlay-picker">Overlay:
+        <select id="overlay-select">
+          <option value="none">None</option>
+          <option value="hubs">Transfer hubs (3+ routes)</option>
+          <option value="walkshed">Frequent-network walkshed (¼ mi)</option>
+          <option value="density">Stop density</option>
+        </select>
+      </label>
     </div>
     <div id="map"></div>
     <div class="legend-row" id="legend-row"></div>
@@ -219,7 +238,7 @@ async function loadAgencyBundle(agency) {
     loadJSON(`${agency.dir}/trending.json`).catch(() => ({ up: [], down: [], added: [], discontinued: [] })),
   ]);
   const routes = (payload.routes || []).map(r => ({ ...r, agency: agency.name, agency_id: agency.id }));
-  for (const f of geojson.features || []) f.properties.agency = agency.name;
+  for (const f of geojson.features || []) { f.properties.agency = agency.name; f.properties.agency_id = agency.id; }
   for (const f of hubs.features || []) f.properties.agency = agency.name;
   for (const f of stops.features || []) f.properties.agency = agency.name;
   for (const list of [trending.up, trending.down, trending.added, trending.discontinued]) {
@@ -290,25 +309,46 @@ function renderLegend() {
 const FREQUENT_MAX_HEADWAY = 15;
 let leafletMap, routeLayer, hubLayer, walkshedLayer, densityLayer, routeGeojson;
 
+// null = every route shown (the common case); otherwise a Set of "agency_id:route_id".
+let selectedRouteKeys = null;
+
+function featureUid(p) { return `${p.agency_id}:${p.route_id}`; }
+
+// Thinner lines for infrequent routes, thicker for frequent ones — a visual
+// hierarchy so ~39 same-weight overlapping lines don't all compete equally
+// for attention. Mirrors the same tiers used for line color.
+function weightForHeadway(headwayMinutes) {
+  if (headwayMinutes === null || headwayMinutes === undefined) return 1.5;
+  if (headwayMinutes <= 15) return 4;
+  if (headwayMinutes <= 30) return 3;
+  return 2;
+}
+
 function buildRouteLayer(geojson, frequentOnly) {
   if (routeLayer) leafletMap.removeLayer(routeLayer);
   routeLayer = L.geoJSON(geojson, {
-    filter: (feature) => !frequentOnly || (feature.properties.headway_minutes ?? Infinity) <= FREQUENT_MAX_HEADWAY,
+    filter: (feature) => {
+      const p = feature.properties;
+      if (frequentOnly && (p.headway_minutes ?? Infinity) > FREQUENT_MAX_HEADWAY) return false;
+      if (selectedRouteKeys && !selectedRouteKeys.has(featureUid(p))) return false;
+      return true;
+    },
     style: (feature) => ({
       color: feature.properties.color || "#3987e5",
-      weight: 3,
+      weight: weightForHeadway(feature.properties.headway_minutes),
       opacity: 0.85,
     }),
     onEachFeature: (feature, lyr) => {
       const p = feature.properties;
       const headway = p.headway_minutes !== null && p.headway_minutes !== undefined
         ? `${p.headway_minutes} min headway` : "headway unknown";
+      const baseWeight = weightForHeadway(p.headway_minutes);
       lyr.bindPopup(
         `<b>${p.route_short_name ? p.route_short_name + " — " : ""}${p.route_long_name || p.route_id}</b><br>
          <span class="tier">${p.agency ? p.agency + " · " : ""}${p.route_type} · ${headway}</span>`
       );
-      lyr.on("mouseover", () => lyr.setStyle({ weight: 6, opacity: 1 }));
-      lyr.on("mouseout", () => lyr.setStyle({ weight: 3, opacity: 0.85 }));
+      lyr.on("mouseover", () => lyr.setStyle({ weight: baseWeight + 3, opacity: 1 }));
+      lyr.on("mouseout", () => lyr.setStyle({ weight: baseWeight, opacity: 0.85 }));
     },
   }).addTo(leafletMap);
 }
@@ -386,8 +426,6 @@ function renderMap(geojson, hubsGeojson, stopsGeojson) {
   leafletMap.fitBounds(routeLayer.getBounds(), { padding: [16, 16] });
 
   buildHubLayer(hubsGeojson || emptyFC());
-  hubLayer.addTo(leafletMap);
-
   buildWalkshedLayer(stopsGeojson || emptyFC());
   buildDensityLayer(stopsGeojson || emptyFC());
 
@@ -395,19 +433,120 @@ function renderMap(geojson, hubsGeojson, stopsGeojson) {
     buildRouteLayer(routeGeojson, e.target.checked);
     setUrlParam("freq", e.target.checked ? "1" : null);
   });
-  document.getElementById("hubs-toggle").addEventListener("change", (e) => {
-    if (e.target.checked) hubLayer.addTo(leafletMap);
-    else leafletMap.removeLayer(hubLayer);
+
+  // Only one extra overlay at a time (hubs / walkshed / density) — stacking
+  // all of them plus the route lines is exactly what made the map busy.
+  const overlayLayers = { hubs: hubLayer, walkshed: walkshedLayer, density: densityLayer };
+  const overlaySelect = document.getElementById("overlay-select");
+  overlaySelect.addEventListener("change", (e) => {
+    for (const layer of Object.values(overlayLayers)) leafletMap.removeLayer(layer);
+    document.getElementById("walkshed-note").style.display = e.target.value === "walkshed" ? "" : "none";
+    const chosen = overlayLayers[e.target.value];
+    if (chosen) chosen.addTo(leafletMap);
   });
-  document.getElementById("walkshed-toggle").addEventListener("change", (e) => {
-    document.getElementById("walkshed-note").style.display = e.target.checked ? "" : "none";
-    if (e.target.checked) walkshedLayer.addTo(leafletMap);
-    else leafletMap.removeLayer(walkshedLayer);
+}
+
+// --- Route filter dropdown: "just show me the streetcar" and friends. Kept
+// separate from the "Frequent network only" checkbox (a common single-click
+// preset) — this one is for picking arbitrary individual routes.
+function updateRouteFilterSummary() {
+  const summaryEl = document.getElementById("route-filter-summary");
+  if (selectedRouteKeys === null || selectedRouteKeys.size === routesData.length) summaryEl.textContent = "All";
+  else if (selectedRouteKeys.size === 0) summaryEl.textContent = "None";
+  else summaryEl.textContent = `${selectedRouteKeys.size} selected`;
+}
+
+function applyRouteFilter() {
+  buildRouteLayer(routeGeojson, document.getElementById("frequent-only-toggle").checked);
+  updateRouteFilterSummary();
+  if (selectedRouteKeys === null || selectedRouteKeys.size === routesData.length) {
+    setUrlParam("routes", null);
+  } else {
+    setUrlParam("routes", [...selectedRouteKeys].join(","));
+  }
+}
+
+function initRouteFilter() {
+  const list = document.getElementById("route-filter-list");
+  const byAgency = new Map();
+  for (const r of routesData) {
+    if (!byAgency.has(r.agency)) byAgency.set(r.agency, []);
+    byAgency.get(r.agency).push(r);
+  }
+
+  const urlRoutes = new URLSearchParams(location.search).get("routes");
+  const startSelected = urlRoutes ? new Set(urlRoutes.split(",")) : null;
+
+  list.innerHTML = "";
+  for (const [agency, routes] of byAgency) {
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "route-filter-group-label";
+    groupLabel.textContent = agency;
+    list.appendChild(groupLabel);
+    for (const r of [...routes].sort((a, b) => (a.route_short_name || "").localeCompare(b.route_short_name || ""))) {
+      const uid = routeUid(r);
+      const item = document.createElement("label");
+      item.className = "route-filter-item";
+      item.dataset.searchText = `${r.route_short_name} ${r.route_long_name}`.toLowerCase();
+      const checked = startSelected ? startSelected.has(uid) : true;
+      item.innerHTML = `<input type="checkbox" data-uid="${uid}" ${checked ? "checked" : ""}>
+        ${r.route_short_name ? r.route_short_name + " — " : ""}${r.route_long_name}`;
+      list.appendChild(item);
+    }
+  }
+
+  selectedRouteKeys = startSelected;
+  updateRouteFilterSummary();
+
+  list.addEventListener("change", (e) => {
+    if (e.target.tagName !== "INPUT") return;
+    if (selectedRouteKeys === null) selectedRouteKeys = new Set(routesData.map(routeUid));
+    if (e.target.checked) selectedRouteKeys.add(e.target.dataset.uid);
+    else selectedRouteKeys.delete(e.target.dataset.uid);
+    applyRouteFilter();
   });
-  document.getElementById("density-toggle").addEventListener("change", (e) => {
-    if (e.target.checked) densityLayer.addTo(leafletMap);
-    else leafletMap.removeLayer(densityLayer);
+
+  document.getElementById("route-filter-search").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    list.querySelectorAll(".route-filter-item").forEach(el => {
+      el.style.display = !q || el.dataset.searchText.includes(q) ? "" : "none";
+    });
   });
+
+  document.querySelectorAll(".route-filter-actions button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+      if (action === "all") {
+        checkboxes.forEach(cb => cb.checked = true);
+        selectedRouteKeys = null;
+      } else if (action === "none") {
+        checkboxes.forEach(cb => cb.checked = false);
+        selectedRouteKeys = new Set();
+      } else if (action === "streetcar") {
+        const streetcarUids = new Set(routesData.filter(r => r.route_type === "Streetcar").map(routeUid));
+        checkboxes.forEach(cb => cb.checked = streetcarUids.has(cb.dataset.uid));
+        selectedRouteKeys = streetcarUids;
+      }
+      applyRouteFilter();
+    });
+  });
+
+  const toggleBtn = document.getElementById("route-filter-toggle");
+  const panel = document.getElementById("route-filter-panel");
+  toggleBtn.addEventListener("click", () => {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    toggleBtn.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== toggleBtn) {
+      panel.hidden = true;
+      toggleBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  if (startSelected) applyRouteFilter();
 }
 
 function trendItemHTML(entry, direction) {
@@ -782,6 +921,7 @@ async function init() {
     renderStaleBanner(agencyMetas);
     renderLegend();
     renderMap(mergedGeojson, mergedHubs, mergedStops);
+    initRouteFilter();
     renderTrending(mergedTrending);
     renderHistorical(baseline, kcataRoutesData);
     renderEquity();

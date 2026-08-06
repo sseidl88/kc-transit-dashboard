@@ -329,6 +329,88 @@ footer a { color: var(--text-muted); }
 }
 .map-controls input[type="checkbox"] { accent-color: var(--series-1); }
 
+.map-overlay-picker { display: inline-flex; align-items: center; gap: 0.4rem; }
+.map-overlay-picker select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.route-filter { position: relative; }
+.route-filter-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.route-filter-btn:hover { background: var(--surface-2); }
+.route-filter-btn span { font-weight: 600; }
+.route-filter-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1000;
+  width: 280px;
+  max-width: 80vw;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(11,11,11,0.18);
+  padding: 0.75rem;
+}
+.route-filter-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+.route-filter-actions button {
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.route-filter-actions button:hover { color: var(--text-primary); }
+.route-filter-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.route-filter-group-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0.15rem;
+}
+.route-filter-group-label:first-child { margin-top: 0; }
+.route-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.1rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 5px;
+}
+.route-filter-item:hover { background: var(--surface-2); }
+.route-filter-item input { accent-color: var(--series-1); }
+
 .leaflet-popup-content .hub-routes { font-size: 0.8rem; color: var(--text-secondary); max-width: 220px; }
 
 /* Search */

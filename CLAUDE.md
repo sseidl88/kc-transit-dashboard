@@ -225,19 +225,31 @@ end-to-end runs outside the test suite.
   graceful fallback if a file 404s (e.g. before an agency's first Actions run,
   or if `baseline_2020.json`/the districts file is ever removed).
 - Map: Leaflet + OpenStreetMap tiles (no API key), routes colored by frequency
-  tier, popup per route on click, hover to highlight. Four toggles:
+  tier **and weighted by it** (`weightForHeadway()` — thicker line for a
+  frequent route, thinner for an infrequent one), popup per route on click,
+  hover to highlight (weight +3 over its base, not a fixed value, so the
+  hierarchy survives the hover state too). Controls:
+  - Route filter (`initRouteFilter()`) — a dropdown checklist grouped by
+    agency, with a search box and "All" / "None" / "Streetcar only" quick
+    actions, for picking specific routes (e.g. "just the streetcar"). State
+    round-trips through `?routes=` (comma-separated `agency_id:route_id`
+    keys, only written when not "all" — the common case stays out of the URL).
+    `selectedRouteKeys` is `null` for "all" rather than a populated Set, so
+    the default path stays cheap.
   - "Frequent network only" — rebuilds the route layer filtered to
     `headway_minutes <= 15` (`FREQUENT_MAX_HEADWAY`); state syncs to `?freq=1`.
-  - Transfer hubs — stops served by 3+ weekday routes (server-side in
-    `build_dataset()`), shown/hidden without rebuilding.
-  - Frequent-network walkshed — a ¼-mile (400m) `L.circle` around every
-    `stops.geojson` feature flagged `frequent`. Deliberately not a real
-    street-network isochrone or a GIS-library buffer/intersection — just
-    Leaflet drawing circles — since that's enough to make gaps in coverage
-    visually obvious without adding a geometry dependency (e.g. shapely) to
-    the pipeline.
-  - Stop density — every stop as a small low-opacity dot; overlap reads as
-    density without a real heatmap plugin.
+    Composes with the route filter (both apply as AND in `buildRouteLayer()`'s
+    `filter`), not a separate mechanism.
+  - A single "Overlay" `<select>` — Transfer hubs / Frequent-network walkshed
+    (¼-mile `L.circle` per `stops.geojson` feature flagged `frequent` —
+    deliberately not a real street-network isochrone or a GIS-library
+    buffer/intersection, just Leaflet circles, enough to make coverage gaps
+    visually obvious without adding a geometry dependency like shapely to the
+    pipeline) / Stop density (every stop as a small low-opacity dot) / None
+    (default). Was three independent checkboxes that could all be on
+    simultaneously alongside the route lines — collapsed to one mutually
+    exclusive picker specifically because that stacking was what made the map
+    busy, not any single layer on its own.
 - "Frequent-network access by council district" section: pure client-side
   point-in-polygon (ray casting, `pointInRing()`/`pointInGeometry()`) against
   `data/kcmo_council_districts.geojson` (Kansas City, MO's 6 council districts,
