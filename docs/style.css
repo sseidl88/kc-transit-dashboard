@@ -15,6 +15,7 @@
   --warning:        #fab219;
   --serious:        #ec835a;
   --critical:       #d03b3b;
+  --study-color:    #4a3aa7;
   --card-shadow:    0 1px 2px rgba(11,11,11,0.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -34,6 +35,7 @@
     --warning:        #fab219;
     --serious:        #ec835a;
     --critical:       #d03b3b;
+    --study-color:    #9085e9;
     --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
   }
 }
@@ -49,6 +51,7 @@
   --border:         rgba(255,255,255,0.10);
   --series-1:       #3987e5;
   --good-text:      #0ca30c;
+  --study-color:    #9085e9;
   --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
 }
 
@@ -412,6 +415,54 @@ footer a { color: var(--text-muted); }
 .route-filter-item input { accent-color: var(--series-1); }
 
 .leaflet-popup-content .hub-routes { font-size: 0.8rem; color: var(--text-secondary); max-width: 220px; }
+.leaflet-popup-content .study-popup { font-size: 0.8rem; color: var(--text-secondary); max-width: 240px; }
+
+/* Study cards ("potential future extensions") */
+.study-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+.study-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+}
+.study-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.study-card h3::before {
+  content: "";
+  width: 14px; height: 3px;
+  border-top: 3px dashed var(--study-color, #4a3aa7);
+  display: inline-block;
+}
+.study-card .status {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.study-card .pop-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.study-card .pop-label {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.study-card .source {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
 
 /* Search */
 .search-input {

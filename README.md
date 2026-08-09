@@ -22,6 +22,11 @@ pulled daily by GitHub Actions:
 - A one-time **2020 → today** network comparison for KCATA (routes added/dropped,
   frequency changes), backfilled from the one historical GTFS snapshot that's freely
   available
+- Potential future extensions currently under study (North Kansas City, 18th & Vine,
+  and an East-West corridor) — real, sourced study-area boundaries with Census
+  population figures, plus an illustrative route line through each study's own named
+  streets. Clearly marked as not-a-confirmed-alignment — see [CLAUDE.md](CLAUDE.md)
+  for exactly what's real data versus this dashboard's own approximation
 - A weekday-vs-weekend service equity view — routes with strong weekday service but
   little or no weekend coverage
 - A side-by-side comparison tool for any two routes (shareable via URL), plus a

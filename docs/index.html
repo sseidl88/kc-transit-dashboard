@@ -55,6 +55,7 @@
           <option value="density">Stop density</option>
         </select>
       </label>
+      <label><input type="checkbox" id="studies-toggle"> Show proposed extensions (under study)</label>
     </div>
     <div id="map"></div>
     <div class="legend-row" id="legend-row"></div>
@@ -63,6 +64,18 @@
       "frequent-network walkshed," not a true street-network isochrone. Gaps in the shading are the
       closest thing here to a transit-desert map.
     </p>
+  </section>
+
+  <section id="studies-section">
+    <h2>Potential future extensions</h2>
+    <p class="section-note">
+      Three corridors are currently under active study by KCATA and the KC Streetcar Authority. None has a
+      chosen alignment, funding, or a confirmed mode yet — what's shown on the map (dashed violet lines) is an
+      <strong>illustrative path through the study corridor's own described streets, built by this dashboard</strong>,
+      not an official engineering drawing. Population figures are 2022 Census ACS estimates for the area
+      each study covers, not a ridership forecast — nobody has published one of those yet for these corridors.
+    </p>
+    <div class="study-cards" id="study-cards"></div>
   </section>
 
   <section id="district-section" style="display:none">
@@ -407,7 +420,50 @@ function buildDensityLayer(stopsGeojson) {
   }
 }
 
-function renderMap(geojson, hubsGeojson, stopsGeojson) {
+// Potential future streetcar/transit extensions — none of these are built,
+// funded, or even aligned yet. Styled deliberately unlike real service
+// (dashed, violet — not the frequency-tier blue ramp) so it can never be
+// mistaken for an actual route at a glance. Study-area polygons are the
+// real, sourced boundaries from each study's own materials; the lines are
+// this dashboard's own illustrative path through those materials' named
+// streets, not an official alignment — every popup says so.
+let studiesLayer;
+
+function buildStudiesLayer(studiesGeojson) {
+  studiesLayer = L.geoJSON(studiesGeojson, {
+    style: (feature) => {
+      const isArea = feature.properties.geometry_type === "study_area";
+      // Hardcoded, not the --study-color CSS var: Leaflet vector styling sets
+      // raw SVG presentation attributes, not CSS properties, so var()
+      // wouldn't resolve reliably. Same reason the other map layers (hubs,
+      // walkshed, density) all use plain hex too — OSM tiles are always
+      // light regardless of page theme, so these don't need a dark variant.
+      return {
+        color: "#4a3aa7",
+        weight: isArea ? 1.5 : 3,
+        opacity: 0.8,
+        dashArray: isArea ? "2 6" : "6 6",
+        fillOpacity: isArea ? 0.08 : 0,
+        fillColor: "#4a3aa7",
+      };
+    },
+    onEachFeature: (feature, lyr) => {
+      const p = feature.properties;
+      if (p.geometry_type === "illustrative_route" && p.parent_id) return; // paired area has the popup
+      const pop = p.population_estimate !== undefined
+        ? `<br>~${fmtNum(p.population_estimate)} people in the study area (2022 Census ACS, ${p.block_group_count} block groups)`
+        : "";
+      const methodNote = p.population_method ? `<br><em>${p.population_method}</em>` : "";
+      lyr.bindPopup(
+        `<b>${p.name}</b>
+         <div class="study-popup">${p.status || ""}${p.mode ? `<br>${p.mode}` : ""}${pop}${methodNote}
+         <br><br>Illustrative only — not a confirmed alignment.</div>`
+      );
+    },
+  });
+}
+
+function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
   routeGeojson = geojson;
   leafletMap = L.map("map", { scrollWheelZoom: false, preferCanvas: true }).setView([39.0997, -94.5786], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -428,10 +484,16 @@ function renderMap(geojson, hubsGeojson, stopsGeojson) {
   buildHubLayer(hubsGeojson || emptyFC());
   buildWalkshedLayer(stopsGeojson || emptyFC());
   buildDensityLayer(stopsGeojson || emptyFC());
+  buildStudiesLayer(studiesGeojson || emptyFC());
 
   document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
     buildRouteLayer(routeGeojson, e.target.checked);
     setUrlParam("freq", e.target.checked ? "1" : null);
+  });
+
+  document.getElementById("studies-toggle").addEventListener("change", (e) => {
+    if (e.target.checked) studiesLayer.addTo(leafletMap);
+    else leafletMap.removeLayer(studiesLayer);
   });
 
   // Only one extra overlay at a time (hubs / walkshed / density) — stacking
@@ -765,6 +827,26 @@ function renderDistrictCoverage(stopsGeojson, districtsGeojson) {
     </tr>`).join("");
 }
 
+function renderStudyCards(studiesGeojson) {
+  if (!studiesGeojson || !studiesGeojson.features) return;
+  const areas = studiesGeojson.features.filter(f =>
+    f.properties.geometry_type === "study_area" || f.properties.geometry_type === "illustrative_route_no_area");
+  document.getElementById("study-cards").innerHTML = areas.map(f => {
+    const p = f.properties;
+    const popMethod = p.population_method
+      ? `<div class="source">${p.population_method}</div>` : "";
+    return `
+      <div class="study-card">
+        <h3>${p.name}</h3>
+        <div class="status">${p.status}${p.mode ? ` · ${p.mode}` : ""}</div>
+        <div class="pop-value">~${fmtNum(p.population_estimate)}</div>
+        <div class="pop-label">people in the study area (2022 Census ACS, ${p.block_group_count} block group${p.block_group_count === 1 ? "" : "s"})</div>
+        ${popMethod}
+        <div class="source">${p.source}</div>
+      </div>`;
+  }).join("");
+}
+
 // --- Shareable URL state for the map's frequent-only filter and the
 // comparison picker, mirroring the nba-visual project's ?league=&team=
 // pattern. Writes with replaceState so toggling filters doesn't spam
@@ -902,6 +984,7 @@ async function init() {
 
     const baseline = await loadJSON("data/baseline_2020.json").catch(() => null);
     const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
+    const studiesGeojson = await loadJSON("data/streetcar_studies.geojson").catch(() => null);
 
     routesData = bundles.flatMap(b => b.routes);
     kcataRoutesData = (bundles.find(b => b.agency.id === "kcata") || {}).routes || [];
@@ -920,8 +1003,9 @@ async function init() {
     renderStats(routesData, agencyMetas);
     renderStaleBanner(agencyMetas);
     renderLegend();
-    renderMap(mergedGeojson, mergedHubs, mergedStops);
+    renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson);
     initRouteFilter();
+    renderStudyCards(studiesGeojson);
     renderTrending(mergedTrending);
     renderHistorical(baseline, kcataRoutesData);
     renderEquity();

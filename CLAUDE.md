@@ -197,6 +197,74 @@ revisiting, not worth blocking on.
 
 ---
 
+## Potential future extensions (`docs/data/streetcar_studies.geojson`)
+
+Shows the 3 corridors KCATA/KC Streetcar Authority are actively studying —
+**North Kansas City Extension**, **18th & Vine Jazz District Extension**, and
+the **East-West Transit Study** (39th St + Linwood Blvd, Rainbow Blvd to Van
+Brunt Blvd — mode not confirmed as streetcar; KCATA and KCSA are evaluating
+multiple modes). None of the three has a chosen alignment, funding, or
+(for East-West) even a confirmed mode. Checked first, same as everywhere
+else in this project — Main Street Extension and Riverfront Extension are
+**not** in this file because they're already built and already reflected in
+the live GTFS feed (that's why STCR's trip count/length jumped between the
+2020 baseline and today).
+
+**None of this is GTFS** — these lines don't exist yet, so there's no feed to
+pull. `streetcar_studies.geojson` was built **once, manually, offline** (not
+by the daily pipeline) and is committed as static reference data, same
+treatment as `baseline_2020.json` and `kcmo_council_districts.geojson`:
+
+- **Study-area polygons** (North KC, East-West) use the real bounding
+  streets/landmarks each study's own materials describe (e.g. East-West:
+  "bounded by Rainbow Blvd west, Van Brunt Blvd east, 31st St north, 43rd St
+  south" from ridekc.org/planning/eastwesttransit) — not guessed.
+- **Route lines are this dashboard's own illustrative approximation**, not an
+  official alignment — none of the three studies has published one in any
+  machine-readable (or even map-image) form as of this writing. Built by
+  geocoding the streets each study's materials actually name (e.g. East-West's
+  Nov 2023 update: "39th Street and Linwood Boulevard, between Rainbow
+  Boulevard and Van Brunt Boulevard") via Nominatim (free, no key) and
+  connecting the points. 18th & Vine has no published street-level detail at
+  all beyond "push the line east into the 18th and Vine corridor," so its line
+  is this dashboard's best plausible guess (18th St to Vine St) — flagged as
+  such in its card, more so than the other two.
+- **Population figures are real Census data, not a ridership forecast** —
+  neither study has published one. `CENTLAT`/`CENTLON` block-group centroids
+  from the Census Bureau's TIGERweb REST service (free, no key) for Jackson
+  Co MO, Clay Co MO, and Wyandotte Co KS, tested against each study-area
+  polygon with the same point-in-polygon function as the council-district
+  section; population per block group from the Census ACS 2022 5-year API
+  (`B01003_001E`), which **does** require a free key — a one-time key, used
+  once to build this static file, not stored as a recurring secret (unlike
+  `TRANSITLAND_API_KEY`) since population doesn't change day to day. 18th &
+  Vine has no published study-area boundary at all (unlike the other two), so
+  its population figure uses a 0.5-mile buffer around the illustrative line
+  instead of a polygon — noted in its own `population_method` field.
+- **North Kansas City's number is a small sample** — only 2 block groups
+  matched (the corridor is a narrow, mostly industrial river crossing), so
+  treat ~2,058 as rougher than the other two even by this feature's own
+  already-loose standards.
+- A ring-ordering bug surfaced while building this: `burlington_32nd`'s
+  address-based geocode (`"3200 Burlington Street"`) landed south of two
+  points that should have bounded it to the north, breaking the polygon into
+  a near-degenerate sliver (1 block group instead of a plausible handful).
+  Street address numbers don't reliably correspond to KC's numbered-avenue
+  cross streets outside the systematic MO-side grid — dropped that point and
+  reordered the ring as an actual perimeter walk instead of trusting an
+  arbitrary point sequence to self-order correctly.
+
+Frontend renders study areas dashed/violet (`--study-color`, a categorical
+slot not used anywhere else on the map) specifically so it can never be
+mistaken for real service at a glance, gated behind its own "Show proposed
+extensions" checkbox (default off — this is speculative content, shouldn't
+be part of the default view). Regenerating this file (if a study publishes a
+real alignment, or a new one starts) means rerunning the same manual
+geocode → TIGERweb → ACS pipeline by hand; there's no `--rebuild-studies`
+flag, this isn't meant to be a repeatable pipeline step.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
