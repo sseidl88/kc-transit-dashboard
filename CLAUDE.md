@@ -385,6 +385,53 @@ via a highway segment a real streetcar alignment never would.
 
 ---
 
+## Historic streetcar network (`docs/data/historic_streetcar_1948.geojson`)
+
+10 streetcar lines digitized from a user-provided scan of an **October 1948
+Kansas City Public Service Co. system map** — the actual original KC
+streetcar network, well before it was dismantled. Not GTFS, not a study:
+a one-time, by-hand digitization, same treatment as `baseline_2020.json`
+and `streetcar_studies.geojson`.
+
+**Confidence is explicit and varies per route**, stored as
+`properties.confidence` (`high`/`medium`/`low`) and reflected in the map's
+dash pattern (`HISTORIC_CONFIDENCE_DASH`):
+- **High** (route 56, Country Club): the map's downtown detail panel gives
+  an exact street ("ON MAIN ST."), and the route's plausible full extent
+  (downtown to Country Club Plaza) is well-supported by the route name
+  itself. Notably runs almost the same corridor as today's Main Street
+  Extension — a real, unplanned echo worth surfacing, not a coincidence
+  the dashboard invented.
+- **Medium** (most routes): downtown segment read directly off the map;
+  extent beyond downtown inferred by geocoding the streets implied by the
+  route's own name (e.g. "Troost–Independence" → Troost Ave + Independence
+  Ave), not traced pixel-by-pixel off the scan.
+- **Low** (routes 59, 67): the source map's resolution genuinely wasn't
+  legible enough to be confident. Route 59 ("Parallel–Jackson") only
+  yielded a confident geocode for "Parallel" (Parallel Parkway, KCK) — the
+  "Jackson" segment isn't represented in the line at all, noted in its
+  `note` field. Route 67 ("16th St.–34th St.") is a straight line between
+  two named cross streets with no attempt to trace an actual path — the
+  roughest guess in the file, flagged as such in its own popup.
+
+**A geocoding gotcha hit while building this**: a bare "Minnesota Avenue,
+Kansas City, KS" query (no house number or cross street) returned a point
+~5 miles further out than a plausible 1948 streetcar terminus — Nominatim
+picked some arbitrary point along the full length of the street. Same
+failure mode as the North KC ring-ordering bug's root cause one section up
+(an ungrounded geocode silently returning something technically on the
+right street but not where anything actually was) — caught by sanity-
+checking the distance from downtown before trusting it, then fixed by
+re-querying with a house number (`"700 Minnesota Avenue..."`) to land
+somewhere actually central.
+
+Map styling: sepia/brown (`#8b5a2b`), never confused with the frequency-tier
+blue, the "under study" violet, or the user-design magenta. Gated behind its
+own "Show 1948 streetcar network" toggle, default off — same reasoning as
+every other opt-in overlay on this map.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every

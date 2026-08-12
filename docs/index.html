@@ -57,6 +57,7 @@
         </select>
       </label>
       <label><input type="checkbox" id="studies-toggle"> Show proposed extensions (under study)</label>
+      <label><input type="checkbox" id="historic-toggle"> Show 1948 streetcar network</label>
     </div>
     <div id="map"></div>
     <div class="legend-row" id="legend-row"></div>
@@ -89,6 +90,30 @@
     <p class="section-note" id="design-streets"></p>
     <div id="design-bridge-warning"></div>
     <div id="design-comparison"></div>
+  </section>
+
+  <section id="historic-section">
+    <h2>KC's original streetcar network (1948)</h2>
+    <p class="section-note">
+      Digitized from an October 1948 Kansas City Public Service Co. system map — 10 streetcar lines, back
+      when the network reached far beyond what's running today. Not GTFS, not a study: an illustrative
+      reconstruction built by reading the map's own downtown boarding directions (high confidence) and
+      tracing each route's name onto real streets beyond downtown (lower confidence — noted per route below
+      and in each line's map popup). Toggle "Show 1948 streetcar network" above to see it against today's
+      map. Route 56 (Country Club) ran almost the exact corridor of today's Main Street Extension.
+    </p>
+    <div class="table-card">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Route</th>
+            <th>Name</th>
+            <th>Digitization confidence</th>
+          </tr>
+        </thead>
+        <tbody id="historic-tbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="studies-section">
@@ -540,6 +565,35 @@ function buildStudiesLayer(studiesGeojson) {
   });
 }
 
+// KC's original streetcar network, digitized from a user-provided scan of an
+// October 1948 Kansas City Public Service Co. system map — not GTFS, not a
+// study, just history. Sepia/brown so it reads as "the past" and is never
+// confused with the violet "under study" lines or real current service.
+let historicLayer;
+const HISTORIC_CONFIDENCE_DASH = { high: "1 0", medium: "4 4", low: "1 8" };
+
+function buildHistoricLayer(historicGeojson) {
+  historicLayer = L.geoJSON(historicGeojson, {
+    style: (feature) => ({
+      color: "#8b5a2b",
+      weight: 3,
+      opacity: 0.85,
+      dashArray: HISTORIC_CONFIDENCE_DASH[feature.properties.confidence] || "4 4",
+    }),
+    onEachFeature: (feature, lyr) => {
+      const p = feature.properties;
+      const note = p.note ? `<br><em>${p.note}</em>` : "";
+      lyr.bindPopup(
+        `<b>${p.year} Route ${p.route_number} — ${p.name}</b>
+         <div class="study-popup">Digitization confidence: ${p.confidence}${note}
+         <br><br>${p.source}</div>`
+      );
+      lyr.on("mouseover", () => lyr.setStyle({ weight: 6, opacity: 1 }));
+      lyr.on("mouseout", () => lyr.setStyle({ weight: 3, opacity: 0.85 }));
+    },
+  });
+}
+
 // --- Design your own extension: click-to-add points, snapped to real
 // streets via OSRM's free public router (CORS-open, no key — verified
 // before building this). Length/cost/population use the exact same
@@ -818,7 +872,7 @@ function initDesignTool(studiesGeojson, stopsGeojson) {
   }
 }
 
-function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
+function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicGeojson) {
   routeGeojson = geojson;
   leafletMap = L.map("map", { scrollWheelZoom: false, preferCanvas: true }).setView([39.0997, -94.5786], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -841,6 +895,7 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
   buildWalkshedLayer(stopsGeojson || emptyFC());
   buildDensityLayer(stopsGeojson || emptyFC());
   buildStudiesLayer(studiesGeojson || emptyFC());
+  buildHistoricLayer(historicGeojson || emptyFC());
 
   document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
     buildRouteLayer(routeGeojson, e.target.checked);
@@ -850,6 +905,11 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
   document.getElementById("studies-toggle").addEventListener("change", (e) => {
     if (e.target.checked) studiesLayer.addTo(leafletMap);
     else leafletMap.removeLayer(studiesLayer);
+  });
+
+  document.getElementById("historic-toggle").addEventListener("change", (e) => {
+    if (e.target.checked) historicLayer.addTo(leafletMap);
+    else leafletMap.removeLayer(historicLayer);
   });
 
   // Only one extra overlay at a time (hubs / walkshed / density) — stacking
@@ -1219,6 +1279,19 @@ function renderDistrictCoverage(stopsGeojson, districtsGeojson) {
     </tr>`).join("");
 }
 
+function renderHistoricTable(historicGeojson) {
+  if (!historicGeojson || !historicGeojson.features) return;
+  const routes = [...historicGeojson.features].sort((a, b) => a.properties.route_number - b.properties.route_number);
+  document.getElementById("historic-tbody").innerHTML = routes.map((f) => {
+    const p = f.properties;
+    return `<tr>
+      <td>${p.route_number}</td>
+      <td>${p.name}${p.note ? ` <span class="source">— ${p.note}</span>` : ""}</td>
+      <td>${p.confidence}</td>
+    </tr>`;
+  }).join("");
+}
+
 function renderStudyCards(studiesGeojson) {
   if (!studiesGeojson || !studiesGeojson.features) return;
   const areas = studiesGeojson.features.filter(f =>
@@ -1383,6 +1456,7 @@ async function init() {
     const baseline = await loadJSON("data/baseline_2020.json").catch(() => null);
     const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
     const studiesGeojson = await loadJSON("data/streetcar_studies.geojson").catch(() => null);
+    const historicGeojson = await loadJSON("data/historic_streetcar_1948.geojson").catch(() => null);
     const needAnalysis = await loadJSON("data/transit_need.json").catch(() => null);
 
     routesData = bundles.flatMap(b => b.routes);
@@ -1402,10 +1476,11 @@ async function init() {
     renderStats(routesData, agencyMetas);
     renderStaleBanner(agencyMetas);
     renderLegend();
-    renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson);
+    renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson, historicGeojson);
     initRouteFilter();
     initDesignTool(studiesGeojson, mergedStops);
     renderStudyCards(studiesGeojson);
+    renderHistoricTable(historicGeojson);
     renderNeedAnalysis(needAnalysis);
     renderTrending(mergedTrending);
     renderHistorical(baseline, kcataRoutesData);

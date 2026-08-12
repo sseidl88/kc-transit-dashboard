@@ -1,0 +1,257 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "50",
+        "name": "Troost\u2013Independence",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.571426,
+            39.070382
+          ],
+          [
+            -94.569799,
+            39.103935
+          ],
+          [
+            -94.5351903,
+            39.1057849
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "55",
+        "name": "Swope Park\u2013Minnesota Ave.",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.5222478,
+            38.9991215
+          ],
+          [
+            -94.580792,
+            39.104301
+          ],
+          [
+            -94.6271325,
+            39.1159605
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "56",
+        "name": "Country Club",
+        "confidence": "high",
+        "note": "Runs almost the same corridor as today's Main Street Extension.",
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.5838415,
+            39.0999055
+          ],
+          [
+            -94.5927959,
+            39.0420441
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "57",
+        "name": "Roanoke",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.5838415,
+            39.0999055
+          ],
+          [
+            -94.5974593,
+            39.0610522
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "58",
+        "name": "12th St.\u2013Kansas Ave.",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.590344,
+            39.1002675
+          ],
+          [
+            -94.6089843,
+            39.0902033
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "59",
+        "name": "Parallel\u2013Jackson",
+        "confidence": "low",
+        "note": "Only 'Parallel' (Parallel Parkway, KCK) could be confidently geocoded; the 'Jackson' segment of this route's name isn't reflected in the line shown.",
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.5813087,
+            39.0997235
+          ],
+          [
+            -94.6237317,
+            39.1246866
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "60",
+        "name": "Central Ave.",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.5744309,
+            39.1036293
+          ],
+          [
+            -94.6097374,
+            39.1045215
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "63",
+        "name": "39th Street",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.607452,
+            39.057213
+          ],
+          [
+            -94.5859782,
+            39.0568054
+          ],
+          [
+            -94.553702,
+            39.055325
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "65",
+        "name": "Prospect",
+        "confidence": "medium",
+        "note": null,
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.551524,
+            39.098728
+          ],
+          [
+            -94.556271,
+            39.012369
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "route_number": "67",
+        "name": "16th St.\u201334th St.",
+        "confidence": "low",
+        "note": "Least legible route on the source map \u2014 this is a straight line between the two named cross streets, not a traced path. Treat as the roughest guess here.",
+        "source": "Digitized from an October 1948 Kansas City Public Service Co. system map (user-provided scan) \u2014 an illustrative reconstruction, not a precise historical GIS record. Downtown segments use the map's own street-by-street boarding directions (high confidence); segments beyond downtown are traced from the route's name and the map's general path, geocoded onto real streets (lower confidence, and this map's own resolution limited how much detail could be read).",
+        "year": 1948
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -94.6466175,
+            39.0697115
+          ],
+          [
+            -94.585703,
+            39.065416
+          ]
+        ]
+      }
+    }
+  ]
+}
