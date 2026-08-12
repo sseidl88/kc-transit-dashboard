@@ -75,6 +75,9 @@
       <strong>illustrative path through the study corridor's own described streets, built by this dashboard</strong>,
       not an official engineering drawing. Population figures are 2022 Census ACS estimates for the area
       each study covers, not a ridership forecast — nobody has published one of those yet for these corridors.
+      Cost estimates are this illustrative length × KC's own two most recent extension costs per mile
+      (Riverfront ≈$87M/mi, Main Street ≈$100M/mi) — a rough order-of-magnitude, not an official project
+      estimate, which none of these studies has published either.
     </p>
     <div class="study-cards" id="study-cards"></div>
   </section>
@@ -123,6 +126,26 @@
         <tbody id="need-top-tbody"></tbody>
       </table>
     </div>
+  </section>
+
+  <section id="design-section">
+    <h2>Design your own extension</h2>
+    <p class="section-note">
+      Click the route map above to sketch a hypothetical route — it snaps to real streets, then estimates
+      length, rough cost, and population served using the same methodology as the study corridors above.
+      This is a napkin-math tool, not an engineering study: street-snapping comes from
+      <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (free, public, OpenStreetMap
+      driving directions — not a transit-specific routing engine, so it may occasionally suggest a highway
+      segment a real streetcar alignment wouldn't use), and population/cost use the same estimates and
+      caveats as the rest of this section.
+    </p>
+    <div class="design-controls">
+      <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
+      <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
+      <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
+      <span class="design-hint" id="design-hint"></span>
+    </div>
+    <div class="stat-row" id="design-stats" style="display:none"></div>
   </section>
 
   <section id="district-section" style="display:none">
@@ -500,13 +523,158 @@ function buildStudiesLayer(studiesGeojson) {
       const pop = p.population_estimate !== undefined
         ? `<br>~${fmtNum(p.population_estimate)} people in the study area (2022 Census ACS, ${p.block_group_count} block groups)`
         : "";
+      const cost = p.cost_estimate_low_millions !== undefined
+        ? `<br>~$${fmtNum(p.cost_estimate_low_millions)}M–$${fmtNum(p.cost_estimate_high_millions)}M rough estimate`
+        : "";
       const methodNote = p.population_method ? `<br><em>${p.population_method}</em>` : "";
       lyr.bindPopup(
         `<b>${p.name}</b>
-         <div class="study-popup">${p.status || ""}${p.mode ? `<br>${p.mode}` : ""}${pop}${methodNote}
+         <div class="study-popup">${p.status || ""}${p.mode ? `<br>${p.mode}` : ""}${pop}${cost}${methodNote}
          <br><br>Illustrative only — not a confirmed alignment.</div>`
       );
     },
+  });
+}
+
+// --- Design your own extension: click-to-add points, snapped to real
+// streets via OSRM's free public router (CORS-open, no key — verified
+// before building this). Length/cost/population use the exact same
+// benchmarks and methodology as the study corridors above, just computed
+// live in the browser against a pre-baked block-group population file
+// (no live Census calls possible client-side without exposing a key).
+const DESIGN_COLOR = "#e87ba4"; // magenta — distinct from route blues and study violet
+const DESIGN_COST_LOW_PER_MILE = 87, DESIGN_COST_HIGH_PER_MILE = 100; // $M/mi, same KC benchmark
+const DESIGN_BUFFER_MILES = 0.5;
+
+let designMode = false;
+let designPoints = []; // [lat, lon][]
+let designLineLayer = null;
+let designMarkersLayer = null;
+let blockGroupPopData = null;
+
+function haversineMilesJS(lat1, lon1, lat2, lon2) {
+  const r = 3958.8;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dphi = toRad(lat2 - lat1), dlambda = toRad(lon2 - lon1);
+  const a = Math.sin(dphi / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dlambda / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(a));
+}
+
+function lineLengthMiles(coords) {
+  let total = 0;
+  for (let i = 0; i < coords.length - 1; i++) total += haversineMilesJS(coords[i][0], coords[i][1], coords[i + 1][0], coords[i + 1][1]);
+  return total;
+}
+
+async function fetchOsrmRoute(points) {
+  // overview=simplified, not full: a Douglas-Peucker-simplified polyline is
+  // still street-accurate and cuts the point count from hundreds/thousands
+  // to tens — matters because the population buffer check below does a
+  // distance test against every point for all ~974 block groups.
+  const coordStr = points.map((p) => `${p[1]},${p[0]}`).join(";");
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=simplified&geometries=geojson`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`OSRM ${res.status}`);
+  const data = await res.json();
+  if (data.code !== "Ok" || !data.routes || !data.routes.length) throw new Error("No route found");
+  return data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+}
+
+function computeDesignStats(snappedCoords) {
+  const lengthMiles = lineLengthMiles(snappedCoords);
+  const costLow = Math.round(lengthMiles * DESIGN_COST_LOW_PER_MILE);
+  const costHigh = Math.round(lengthMiles * DESIGN_COST_HIGH_PER_MILE);
+
+  let population = 0, noVehicle = 0;
+  if (blockGroupPopData) {
+    for (const bg of blockGroupPopData.block_groups) {
+      let minDist = Infinity;
+      for (const [lat, lon] of snappedCoords) {
+        const d = haversineMilesJS(bg.lat, bg.lon, lat, lon);
+        if (d < minDist) minDist = d;
+        if (minDist <= DESIGN_BUFFER_MILES) break;
+      }
+      if (minDist <= DESIGN_BUFFER_MILES) {
+        population += bg.population;
+        noVehicle += bg.no_vehicle_households;
+      }
+    }
+  }
+  return { lengthMiles, costLow, costHigh, population, noVehicle };
+}
+
+function renderDesignStats(stats) {
+  const el = document.getElementById("design-stats");
+  el.style.display = "";
+  el.innerHTML = [
+    { label: "Length (street-snapped)", value: `${stats.lengthMiles.toFixed(1)} mi` },
+    { label: "Rough cost estimate", value: `$${fmtNum(stats.costLow)}M–$${fmtNum(stats.costHigh)}M` },
+    { label: "Population within 0.5 mi", value: fmtNum(stats.population) },
+    { label: "Car-free households within 0.5 mi", value: fmtNum(stats.noVehicle) },
+  ].map((t) => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+}
+
+function updateDesignVisualization() {
+  if (designLineLayer) { leafletMap.removeLayer(designLineLayer); designLineLayer = null; }
+  if (designMarkersLayer) { leafletMap.removeLayer(designMarkersLayer); designMarkersLayer = null; }
+
+  designMarkersLayer = L.layerGroup();
+  for (const p of designPoints) {
+    L.circleMarker(p, { radius: 5, color: "#0b0b0b", weight: 1, fillColor: DESIGN_COLOR, fillOpacity: 1 }).addTo(designMarkersLayer);
+  }
+  designMarkersLayer.addTo(leafletMap);
+
+  document.getElementById("design-undo").disabled = designPoints.length === 0;
+  document.getElementById("design-clear").disabled = designPoints.length === 0;
+  const hint = document.getElementById("design-hint");
+
+  if (designPoints.length < 2) {
+    document.getElementById("design-stats").style.display = "none";
+    hint.textContent = designPoints.length === 0
+      ? "Click the map to place your first point."
+      : "Click again to add a second point and see a snapped route.";
+    return;
+  }
+
+  hint.textContent = "Routing…";
+  fetchOsrmRoute(designPoints).then((snapped) => {
+    designLineLayer = L.polyline(snapped, { color: DESIGN_COLOR, weight: 4, opacity: 0.9, dashArray: "1 6" }).addTo(leafletMap);
+    renderDesignStats(computeDesignStats(snapped));
+    hint.textContent = "Click to add another point, or Undo/Clear.";
+  }).catch((err) => {
+    hint.textContent = "Couldn't fetch a street-snapped route just now (the free routing service may be busy) — try again, or add points closer together.";
+    console.error(err);
+  });
+}
+
+function onMapClickForDesign(e) {
+  if (!designMode) return;
+  designPoints.push([e.latlng.lat, e.latlng.lng]);
+  updateDesignVisualization();
+}
+
+function initDesignTool() {
+  loadJSON("data/block_group_population.json").then((d) => { blockGroupPopData = d; }).catch(() => { blockGroupPopData = null; });
+
+  const toggleBtn = document.getElementById("design-toggle");
+  toggleBtn.addEventListener("click", () => {
+    designMode = !designMode;
+    toggleBtn.textContent = designMode ? "Stop designing" : "Start designing on the map above";
+    toggleBtn.classList.toggle("active", designMode);
+    if (leafletMap) leafletMap.getContainer().style.cursor = designMode ? "crosshair" : "";
+    document.getElementById("design-hint").textContent = designMode
+      ? (designPoints.length === 0 ? "Click the map to place your first point." : "Click to add another point.")
+      : "";
+  });
+
+  document.getElementById("design-undo").addEventListener("click", () => {
+    designPoints.pop();
+    updateDesignVisualization();
+  });
+
+  document.getElementById("design-clear").addEventListener("click", () => {
+    designPoints = [];
+    updateDesignVisualization();
   });
 }
 
@@ -517,6 +685,7 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(leafletMap);
+  leafletMap.on("click", onMapClickForDesign);
 
   if (!geojson || !geojson.features || geojson.features.length === 0) {
     L.control.attribution({ prefix: false }).addTo(leafletMap);
@@ -918,6 +1087,11 @@ function renderStudyCards(studiesGeojson) {
     const p = f.properties;
     const popMethod = p.population_method
       ? `<div class="source">${p.population_method}</div>` : "";
+    const cost = (p.cost_estimate_low_millions !== undefined)
+      ? `<div class="pop-value">$${fmtNum(p.cost_estimate_low_millions)}M – $${fmtNum(p.cost_estimate_high_millions)}M</div>
+         <div class="pop-label">rough cost estimate for ${p.illustrative_length_miles} illustrative miles</div>
+         <div class="source">${p.cost_method}</div>`
+      : "";
     return `
       <div class="study-card">
         <h3>${p.name}</h3>
@@ -925,6 +1099,7 @@ function renderStudyCards(studiesGeojson) {
         <div class="pop-value">~${fmtNum(p.population_estimate)}</div>
         <div class="pop-label">people in the study area (2022 Census ACS, ${p.block_group_count} block group${p.block_group_count === 1 ? "" : "s"})</div>
         ${popMethod}
+        ${cost}
         <div class="source">${p.source}</div>
       </div>`;
   }).join("");
@@ -1089,6 +1264,7 @@ async function init() {
     renderLegend();
     renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson);
     initRouteFilter();
+    initDesignTool();
     renderStudyCards(studiesGeojson);
     renderNeedAnalysis(needAnalysis);
     renderTrending(mergedTrending);

@@ -11,7 +11,11 @@
         "geometry_type": "study_area",
         "population_estimate": 20677,
         "block_group_count": 26,
-        "source": "ridekc.org/planning/eastwesttransit \u2014 study area bounded by Rainbow Blvd (west), Van Brunt Blvd (east), 31st St (north), 43rd St (south); Nov 2023 materials show the corridor alignment along 39th Street and Linwood Boulevard."
+        "source": "ridekc.org/planning/eastwesttransit \u2014 study area bounded by Rainbow Blvd (west), Van Brunt Blvd (east), 31st St (north), 43rd St (south); Nov 2023 materials show the corridor alignment along 39th Street and Linwood Boulevard.",
+        "illustrative_length_miles": 5.69,
+        "cost_estimate_low_millions": 495,
+        "cost_estimate_high_millions": 569,
+        "cost_method": "Rough order-of-magnitude only: illustrative route length x $87-100M/mile, KCs own two most recent streetcar extension costs (Riverfront ~$87M/mi, Main Street ~$100M/mi) -- not an official project cost estimate, which none of these studies has published yet."
       },
       "geometry": {
         "type": "Polygon",
@@ -47,7 +51,10 @@
         "id": "east_west_route",
         "name": "East-West Transit Study \u2014 illustrative alignment",
         "geometry_type": "illustrative_route",
-        "parent_id": "east_west"
+        "parent_id": "east_west",
+        "illustrative_length_miles": 5.69,
+        "cost_estimate_low_millions": 495,
+        "cost_estimate_high_millions": 569
       },
       "geometry": {
         "type": "LineString",
@@ -97,7 +104,11 @@
         "geometry_type": "study_area",
         "population_estimate": 2058,
         "block_group_count": 2,
-        "source": "kcstreetcar.org \u2014 study area from River Market across the Missouri River to ~32nd Ave in North Kansas City, bounded west by the ASB Railroad Bridge/BNSF right-of-way, east by Charlotte and Swift Streets."
+        "source": "kcstreetcar.org \u2014 study area from River Market across the Missouri River to ~32nd Ave in North Kansas City, bounded west by the ASB Railroad Bridge/BNSF right-of-way, east by Charlotte and Swift Streets.",
+        "illustrative_length_miles": 3.02,
+        "cost_estimate_low_millions": 263,
+        "cost_estimate_high_millions": 302,
+        "cost_method": "Rough order-of-magnitude only: illustrative route length x $87-100M/mile, KCs own two most recent streetcar extension costs (Riverfront ~$87M/mi, Main Street ~$100M/mi) -- not an official project cost estimate, which none of these studies has published yet. Likely an UNDER-estimate here specifically: a Missouri River crossing means bridge and utility work well beyond what a flat street extension costs, and neither KC benchmark involved a river crossing."
       },
       "geometry": {
         "type": "Polygon",
@@ -141,7 +152,10 @@
         "id": "north_kc_route",
         "name": "North Kansas City Extension \u2014 illustrative alignment",
         "geometry_type": "illustrative_route",
-        "parent_id": "north_kc"
+        "parent_id": "north_kc",
+        "illustrative_length_miles": 3.02,
+        "cost_estimate_low_millions": 263,
+        "cost_estimate_high_millions": 302
       },
       "geometry": {
         "type": "LineString",
@@ -180,7 +194,11 @@
         "population_estimate": 7104,
         "block_group_count": 7,
         "population_method": "No formal study-area boundary has been published for this one (unlike the other two) \u2014 population is estimated within a 0.5-mile buffer of the illustrative route instead.",
-        "source": "kcstreetcar.org / KCTV5 coverage \u2014 proposed extension east from the existing line into the 18th & Vine corridor; specific streets not published, route shown here follows 18th Street to Vine Street as the most direct plausible path."
+        "source": "kcstreetcar.org / KCTV5 coverage \u2014 proposed extension east from the existing line into the 18th & Vine corridor; specific streets not published, route shown here follows 18th Street to Vine Street as the most direct plausible path.",
+        "illustrative_length_miles": 1.61,
+        "cost_estimate_low_millions": 140,
+        "cost_estimate_high_millions": 161,
+        "cost_method": "Rough order-of-magnitude only: illustrative route length x $87-100M/mile, KCs own two most recent streetcar extension costs (Riverfront ~$87M/mi, Main Street ~$100M/mi) -- not an official project cost estimate, which none of these studies has published yet."
       },
       "geometry": {
         "type": "LineString",

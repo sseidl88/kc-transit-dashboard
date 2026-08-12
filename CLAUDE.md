@@ -317,6 +317,45 @@ by hand if the underlying GTFS or study corridors change enough to warrant it.
 
 ---
 
+## Cost estimates and the "design your own extension" tool
+
+**Cost benchmark**: none of the 3 studies has published a cost estimate (North
+KC's own materials only say "likely multi-hundred-million-dollar"), so costs
+here are illustrative length × **$87–100M/mile** — KC's own two most recent
+streetcar extension costs (Riverfront $61.1M / 0.7mi ≈ $87M/mi; Main Street
+$351.71M / ~3.5mi ≈ $100M/mi), not a generic national average. Chose these
+over national figures (Tampa ~$59M/mi, Santa Ana >$150M/mi) specifically
+because same-agency/same-city/same-era costs account for local labor,
+utility relocation, and procurement conditions that a generic figure can't.
+Baked into `streetcar_studies.geojson` as `cost_estimate_low/high_millions` —
+North KC's `cost_method` carries an extra caveat that its estimate is
+probably a floor, since neither KC benchmark involved a river crossing and
+this one does (bridge/utility work costs more).
+
+**The design tool** (`docs/index.html`, `initDesignTool()` and friends): click
+points on the existing route map (no second Leaflet instance — reuses
+`leafletMap` via `onMapClickForDesign`, gated behind a `designMode` flag so
+normal map interaction is unaffected when it's off) to sketch a hypothetical
+route. Each click re-requests the full point sequence from
+**OSRM's free public router** (`router.project-osrm.org`, no key, `Access-
+Control-Allow-Origin: *` confirmed before building around it) with
+`overview=simplified` — deliberately not `full`: a Douglas-Peucker-simplified
+polyline is still street-accurate but cuts the point count from
+hundreds/thousands to tens, which matters because the population buffer
+check below does a distance test against every returned point for all ~974
+block groups. Length, cost, and population/car-free-household figures reuse
+the exact same math and $/mile benchmark as the study corridors above, just
+computed live in the browser against a pre-baked static file
+(`docs/data/block_group_population.json` — the same 974 block-group
+population + no-vehicle-household dataset built for the need analysis,
+trimmed to just `lat`/`lon`/`population`/`no_vehicle_households`) since a
+static GitHub Pages site can't make authenticated live Census calls without
+exposing a key client-side. OSRM's `driving` profile is a proxy, not a
+transit router — the section copy says so, since it may occasionally route
+via a highway segment a real streetcar alignment never would.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every

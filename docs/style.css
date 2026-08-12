@@ -309,6 +309,20 @@ footer a { color: var(--text-muted); }
   white-space: nowrap;
 }
 .theme-toggle:hover { color: var(--text-primary); }
+.theme-toggle:disabled { opacity: 0.45; cursor: default; }
+.theme-toggle.active { background: var(--series-1); color: #fff; border-color: var(--series-1); }
+
+.design-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+.design-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
 
 .stale-banner {
   margin-top: 0.75rem;

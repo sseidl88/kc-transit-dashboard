@@ -26,9 +26,15 @@ pulled daily by GitHub Actions:
   available
 - Potential future extensions currently under study (North Kansas City, 18th & Vine,
   and an East-West corridor) — real, sourced study-area boundaries with Census
-  population figures, plus an illustrative route line through each study's own named
-  streets. Clearly marked as not-a-confirmed-alignment — see [CLAUDE.md](CLAUDE.md)
-  for exactly what's real data versus this dashboard's own approximation
+  population figures and a rough cost estimate (illustrative length × KC's own last
+  two extension costs per mile — Riverfront ~$87M/mi, Main Street ~$100M/mi), plus an
+  illustrative route line through each study's own named streets. Clearly marked as
+  not-a-confirmed-alignment — see [CLAUDE.md](CLAUDE.md) for exactly what's real data
+  versus this dashboard's own approximation
+- **Design your own extension** — click points on the map to sketch a route; it snaps
+  to real streets via [OSRM](https://project-osrm.org/) (free, no key) and estimates
+  length, cost, and population served live in the browser, using the same benchmarks
+  and a pre-baked Census dataset (no live API calls after the one-time build)
 - **Where should KC invest next?** — with fares back as of June 2026, a plain,
   explainable "priority zone" rule (above-median car-free households + far from the
   frequent network) built from real Census data, compared against the 3 corridors
