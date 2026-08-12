@@ -135,7 +135,7 @@ h3.subhead {
 
 /* Map */
 #map {
-  height: 520px;
+  height: 720px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-1);
@@ -500,7 +500,7 @@ footer a { color: var(--text-muted); }
 .equity-note-strong { color: var(--text-primary); font-weight: 600; }
 
 @media (max-width: 640px) {
-  #map { height: 380px; }
+  #map { height: 480px; }
   .wrap { padding: 0 0.85rem; }
   header.top h1 { font-size: 1.3rem; }
   .top-controls { flex-direction: column; }

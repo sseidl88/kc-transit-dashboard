@@ -67,6 +67,26 @@
     </p>
   </section>
 
+  <section id="design-section">
+    <h2>Design your own extension</h2>
+    <p class="section-note">
+      Click the map above to sketch a hypothetical route — it snaps to real streets, then estimates
+      length, rough cost, and population served using the same methodology as the study corridors below.
+      This is a napkin-math tool, not an engineering study: street-snapping comes from
+      <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (free, public, OpenStreetMap
+      driving directions — not a transit-specific routing engine, so it may occasionally suggest a highway
+      segment a real streetcar alignment wouldn't use), and population/cost use the same estimates and
+      caveats used throughout this page.
+    </p>
+    <div class="design-controls">
+      <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
+      <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
+      <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
+      <span class="design-hint" id="design-hint"></span>
+    </div>
+    <div class="stat-row" id="design-stats" style="display:none"></div>
+  </section>
+
   <section id="studies-section">
     <h2>Potential future extensions</h2>
     <p class="section-note">
@@ -126,26 +146,6 @@
         <tbody id="need-top-tbody"></tbody>
       </table>
     </div>
-  </section>
-
-  <section id="design-section">
-    <h2>Design your own extension</h2>
-    <p class="section-note">
-      Click the route map above to sketch a hypothetical route — it snaps to real streets, then estimates
-      length, rough cost, and population served using the same methodology as the study corridors above.
-      This is a napkin-math tool, not an engineering study: street-snapping comes from
-      <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (free, public, OpenStreetMap
-      driving directions — not a transit-specific routing engine, so it may occasionally suggest a highway
-      segment a real streetcar alignment wouldn't use), and population/cost use the same estimates and
-      caveats as the rest of this section.
-    </p>
-    <div class="design-controls">
-      <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
-      <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
-      <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
-      <span class="design-hint" id="design-hint"></span>
-    </div>
-    <div class="stat-row" id="design-stats" style="display:none"></div>
   </section>
 
   <section id="district-section" style="display:none">
