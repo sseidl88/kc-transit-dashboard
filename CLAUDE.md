@@ -354,6 +354,35 @@ exposing a key client-side. OSRM's `driving` profile is a proxy, not a
 transit router — the section copy says so, since it may occasionally route
 via a highway segment a real streetcar alignment never would.
 
+**Five upgrades to the design tool, all client-side, no new data pipeline:**
+- **Comparison table** (`renderDesignComparison()`) — your design's length/cost/
+  population next to the 3 real study corridors, plus a cost-per-person figure
+  for both, with the section copy explicit that lower cost-per-person isn't
+  automatically "better" (doesn't account for existing coverage or who
+  specifically lives there).
+- **Street names** — OSRM's route request now passes `steps=true`; consecutive
+  duplicate step names are collapsed into a "Follows: X → Y → Z" line.
+- **Bridge/river-crossing warning** — proximity (0.2mi) to `KNOWN_RIVER_CROSSINGS`,
+  4 real Missouri River bridges near downtown KC, individually geocoded via
+  Nominatim. **Not** a name-contains-"bridge" check on OSRM's step names — tried
+  that first, and it false-negatived on an actual test crossing (Broadway
+  Boulevard's bridge segment is named "Broadway Boulevard" in OSM, not
+  "Broadway Bridge"; the `bridge=yes` tag isn't surfaced in route step names at
+  all). Verified against a real crossing before shipping, same as everywhere
+  else in this project.
+- **New vs. redundant coverage** — each snapped segment's midpoint is tested
+  against `designFrequentStopCoords` (both agencies' `frequent`-flagged stops)
+  at the same 0.25mi radius as the frequent-network walkshed elsewhere;
+  segment length is summed into "new" or "redundant" accordingly. Verified
+  against a real test line drawn along Main St (where the streetcar already
+  runs) — correctly comes back 100% redundant, 0% new.
+- **Shareable link** — `designPoints` round-trips through `?design=` (`lat,lon`
+  pairs, `;`-joined, 5 decimal places), same `setUrlParam()` pattern as every
+  other shareable state on this page. A "Copy link" button writes
+  `location.href` to the clipboard. Loading a `?design=` URL renders the
+  route and stats immediately without requiring the user to click "Start
+  designing" first.
+
 ---
 
 ## Testing

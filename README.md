@@ -34,7 +34,11 @@ pulled daily by GitHub Actions:
 - **Design your own extension** — click points on the map to sketch a route; it snaps
   to real streets via [OSRM](https://project-osrm.org/) (free, no key) and estimates
   length, cost, and population served live in the browser, using the same benchmarks
-  and a pre-baked Census dataset (no live API calls after the one-time build)
+  and a pre-baked Census dataset (no live API calls after the one-time build). Also:
+  a side-by-side comparison against the 3 real study corridors, the actual street
+  names your route follows, a warning if it crosses the Missouri River (cost is
+  almost certainly higher there), how much of it is new coverage vs. already served
+  by the existing frequent network, and a shareable link
 - **Where should KC invest next?** — with fares back as of June 2026, a plain,
   explainable "priority zone" rule (above-median car-free households + far from the
   frequent network) built from real Census data, compared against the 3 corridors

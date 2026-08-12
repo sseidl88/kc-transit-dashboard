@@ -82,9 +82,13 @@
       <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
       <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
       <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
+      <button class="theme-toggle" id="design-copy-link" type="button">Copy link to this design</button>
       <span class="design-hint" id="design-hint"></span>
     </div>
     <div class="stat-row" id="design-stats" style="display:none"></div>
+    <p class="section-note" id="design-streets"></p>
+    <div id="design-bridge-warning"></div>
+    <div id="design-comparison"></div>
   </section>
 
   <section id="studies-section">
@@ -545,12 +549,15 @@ function buildStudiesLayer(studiesGeojson) {
 const DESIGN_COLOR = "#e87ba4"; // magenta — distinct from route blues and study violet
 const DESIGN_COST_LOW_PER_MILE = 87, DESIGN_COST_HIGH_PER_MILE = 100; // $M/mi, same KC benchmark
 const DESIGN_BUFFER_MILES = 0.5;
+const DESIGN_EXISTING_FREQUENT_MILES = 0.25; // matches the frequent-network walkshed radius elsewhere
 
 let designMode = false;
 let designPoints = []; // [lat, lon][]
 let designLineLayer = null;
 let designMarkersLayer = null;
 let blockGroupPopData = null;
+let designStudyAreas = []; // real study-corridor stats, for the comparison table
+let designFrequentStopCoords = []; // [lat, lon][] of existing frequent stops, both agencies
 
 function haversineMilesJS(lat1, lon1, lat2, lon2) {
   const r = 3958.8;
@@ -566,18 +573,52 @@ function lineLengthMiles(coords) {
   return total;
 }
 
+function minDistToPointsMiles(lat, lon, points) {
+  let min = Infinity;
+  for (const [plat, plon] of points) {
+    const d = haversineMilesJS(lat, lon, plat, plon);
+    if (d < min) min = d;
+    if (min <= 0.001) break;
+  }
+  return min;
+}
+
+// Real, geocoded Missouri River crossings near downtown KC (Nominatim, verified
+// individually — OSRM's route "steps" name a bridge segment after the street
+// it carries, e.g. "Broadway Boulevard", not "Broadway Bridge", so a simple
+// name-contains-"bridge" check tested false-negative on an actual river
+// crossing and had to be replaced with proximity to these known points).
+const KNOWN_RIVER_CROSSINGS = [
+  { name: "Buck O'Neil (Broadway) Bridge", lat: 39.1123, lon: -94.5902 },
+  { name: "Heart of America Bridge", lat: 39.1157, lon: -94.5786 },
+  { name: "ASB Bridge", lat: 39.1158, lon: -94.5796 },
+  { name: "Christopher S. Bond (Paseo) Bridge", lat: 39.1241, lon: -94.5662 },
+];
+const RIVER_CROSSING_PROXIMITY_MILES = 0.2;
+
 async function fetchOsrmRoute(points) {
   // overview=simplified, not full: a Douglas-Peucker-simplified polyline is
   // still street-accurate and cuts the point count from hundreds/thousands
   // to tens — matters because the population buffer check below does a
   // distance test against every point for all ~974 block groups.
+  // steps=true so we can name the actual streets.
   const coordStr = points.map((p) => `${p[1]},${p[0]}`).join(";");
-  const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=simplified&geometries=geojson`;
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=simplified&geometries=geojson&steps=true`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`OSRM ${res.status}`);
   const data = await res.json();
   if (data.code !== "Ok" || !data.routes || !data.routes.length) throw new Error("No route found");
-  return data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+  const route = data.routes[0];
+  const coords = route.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+  const stepNames = [];
+  for (const leg of route.legs || []) {
+    for (const step of leg.steps || []) {
+      if (step.name && step.name !== stepNames[stepNames.length - 1]) stepNames.push(step.name);
+    }
+  }
+  const crossesBridge = coords.some(([lat, lon]) =>
+    KNOWN_RIVER_CROSSINGS.some((b) => haversineMilesJS(lat, lon, b.lat, b.lon) <= RIVER_CROSSING_PROXIMITY_MILES));
+  return { coords, stepNames: stepNames.filter(Boolean), crossesBridge };
 }
 
 function computeDesignStats(snappedCoords) {
@@ -588,30 +629,96 @@ function computeDesignStats(snappedCoords) {
   let population = 0, noVehicle = 0;
   if (blockGroupPopData) {
     for (const bg of blockGroupPopData.block_groups) {
-      let minDist = Infinity;
-      for (const [lat, lon] of snappedCoords) {
-        const d = haversineMilesJS(bg.lat, bg.lon, lat, lon);
-        if (d < minDist) minDist = d;
-        if (minDist <= DESIGN_BUFFER_MILES) break;
-      }
-      if (minDist <= DESIGN_BUFFER_MILES) {
+      if (minDistToPointsMiles(bg.lat, bg.lon, snappedCoords) <= DESIGN_BUFFER_MILES) {
         population += bg.population;
         noVehicle += bg.no_vehicle_households;
       }
     }
   }
-  return { lengthMiles, costLow, costHigh, population, noVehicle };
+
+  // New vs. redundant coverage: classify each segment by whether its
+  // midpoint already sits within the frequent-network walkshed radius.
+  let newMiles = 0, redundantMiles = 0;
+  for (let i = 0; i < snappedCoords.length - 1; i++) {
+    const [lat1, lon1] = snappedCoords[i], [lat2, lon2] = snappedCoords[i + 1];
+    const segLen = haversineMilesJS(lat1, lon1, lat2, lon2);
+    const midLat = (lat1 + lat2) / 2, midLon = (lon1 + lon2) / 2;
+    const nearExisting = designFrequentStopCoords.length > 0
+      && minDistToPointsMiles(midLat, midLon, designFrequentStopCoords) <= DESIGN_EXISTING_FREQUENT_MILES;
+    if (nearExisting) redundantMiles += segLen; else newMiles += segLen;
+  }
+
+  return { lengthMiles, costLow, costHigh, population, noVehicle, newMiles, redundantMiles };
 }
 
-function renderDesignStats(stats) {
+function renderDesignStats(stats, streetNames, crossesBridge) {
   const el = document.getElementById("design-stats");
   el.style.display = "";
+  const newPct = stats.lengthMiles > 0 ? Math.round((stats.newMiles / stats.lengthMiles) * 100) : 0;
   el.innerHTML = [
     { label: "Length (street-snapped)", value: `${stats.lengthMiles.toFixed(1)} mi` },
     { label: "Rough cost estimate", value: `$${fmtNum(stats.costLow)}M–$${fmtNum(stats.costHigh)}M` },
     { label: "Population within 0.5 mi", value: fmtNum(stats.population) },
     { label: "Car-free households within 0.5 mi", value: fmtNum(stats.noVehicle) },
+    { label: "New coverage (vs. existing frequent network)", value: `${newPct}%` },
   ].map((t) => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+
+  const streetsEl = document.getElementById("design-streets");
+  streetsEl.innerHTML = streetNames && streetNames.length
+    ? `Follows: ${streetNames.join(" → ")}` : "";
+
+  const bridgeEl = document.getElementById("design-bridge-warning");
+  bridgeEl.innerHTML = crossesBridge
+    ? `<div class="stale-banner">This route crosses a bridge — the cost estimate above is almost certainly
+       too low here. Neither of KC's two benchmark extensions (Riverfront, Main Street) involved a river or
+       highway crossing, and that kind of work costs significantly more than flat street construction.</div>`
+    : "";
+
+  renderDesignComparison(stats);
+}
+
+function renderDesignComparison(stats) {
+  const el = document.getElementById("design-comparison");
+  if (!designStudyAreas.length) { el.innerHTML = ""; return; }
+
+  const costMid = (stats.costLow + stats.costHigh) / 2;
+  const rows = [
+    { name: "Your design", length: stats.lengthMiles, costLow: stats.costLow, costHigh: stats.costHigh, population: stats.population },
+    ...designStudyAreas,
+  ];
+  el.innerHTML = `
+    <h3 class="subhead">How does this compare to the corridors already under study?</h3>
+    <div class="table-card" style="margin-top:0.5rem">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Corridor</th>
+            <th class="num">Length</th>
+            <th class="num">Rough cost</th>
+            <th class="num">Population served</th>
+            <th class="num">Cost per person</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => {
+            const mid = (r.costLow + r.costHigh) / 2;
+            const perPerson = r.population > 0 ? Math.round((mid * 1e6) / r.population) : null;
+            return `<tr${r.name === "Your design" ? ' style="font-weight:600"' : ""}>
+              <td>${r.name}</td>
+              <td class="num">${r.length.toFixed(1)} mi</td>
+              <td class="num">$${fmtNum(r.costLow)}M–$${fmtNum(r.costHigh)}M</td>
+              <td class="num">${fmtNum(r.population)}</td>
+              <td class="num">${perPerson !== null ? "$" + fmtNum(perPerson) : "—"}</td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    <p class="section-note" style="margin-top:0.4rem">
+      "Cost per person" is total rough cost ÷ population within range — a crude efficiency proxy, not a real
+      cost-benefit or ridership analysis. Lower isn't automatically "better": it doesn't account for existing
+      coverage, connectivity, or who specifically lives there (see the priority-zone analysis above for that).
+    </p>`;
 }
 
 function updateDesignVisualization() {
@@ -627,9 +734,13 @@ function updateDesignVisualization() {
   document.getElementById("design-undo").disabled = designPoints.length === 0;
   document.getElementById("design-clear").disabled = designPoints.length === 0;
   const hint = document.getElementById("design-hint");
+  setUrlParam("design", designPoints.length ? designPoints.map((p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join(";") : null);
 
   if (designPoints.length < 2) {
     document.getElementById("design-stats").style.display = "none";
+    document.getElementById("design-streets").innerHTML = "";
+    document.getElementById("design-bridge-warning").innerHTML = "";
+    document.getElementById("design-comparison").innerHTML = "";
     hint.textContent = designPoints.length === 0
       ? "Click the map to place your first point."
       : "Click again to add a second point and see a snapped route.";
@@ -637,9 +748,9 @@ function updateDesignVisualization() {
   }
 
   hint.textContent = "Routing…";
-  fetchOsrmRoute(designPoints).then((snapped) => {
-    designLineLayer = L.polyline(snapped, { color: DESIGN_COLOR, weight: 4, opacity: 0.9, dashArray: "1 6" }).addTo(leafletMap);
-    renderDesignStats(computeDesignStats(snapped));
+  fetchOsrmRoute(designPoints).then(({ coords, stepNames, crossesBridge }) => {
+    designLineLayer = L.polyline(coords, { color: DESIGN_COLOR, weight: 4, opacity: 0.9, dashArray: "1 6" }).addTo(leafletMap);
+    renderDesignStats(computeDesignStats(coords), stepNames, crossesBridge);
     hint.textContent = "Click to add another point, or Undo/Clear.";
   }).catch((err) => {
     hint.textContent = "Couldn't fetch a street-snapped route just now (the free routing service may be busy) — try again, or add points closer together.";
@@ -653,8 +764,22 @@ function onMapClickForDesign(e) {
   updateDesignVisualization();
 }
 
-function initDesignTool() {
+function initDesignTool(studiesGeojson, stopsGeojson) {
   loadJSON("data/block_group_population.json").then((d) => { blockGroupPopData = d; }).catch(() => { blockGroupPopData = null; });
+
+  designStudyAreas = (studiesGeojson?.features || [])
+    .filter((f) => f.properties.geometry_type === "study_area" || f.properties.geometry_type === "illustrative_route_no_area")
+    .map((f) => ({
+      name: f.properties.name,
+      length: f.properties.illustrative_length_miles || 0,
+      costLow: f.properties.cost_estimate_low_millions || 0,
+      costHigh: f.properties.cost_estimate_high_millions || 0,
+      population: f.properties.population_estimate || 0,
+    }));
+
+  designFrequentStopCoords = (stopsGeojson?.features || [])
+    .filter((f) => f.properties.frequent)
+    .map((f) => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
 
   const toggleBtn = document.getElementById("design-toggle");
   toggleBtn.addEventListener("click", () => {
@@ -676,6 +801,21 @@ function initDesignTool() {
     designPoints = [];
     updateDesignVisualization();
   });
+
+  document.getElementById("design-copy-link").addEventListener("click", (e) => {
+    navigator.clipboard.writeText(location.href).then(() => {
+      const btn = e.target;
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+  });
+
+  const urlDesign = new URLSearchParams(location.search).get("design");
+  if (urlDesign) {
+    designPoints = urlDesign.split(";").map((pair) => pair.split(",").map(Number)).filter((p) => p.length === 2 && !p.some(Number.isNaN));
+    if (designPoints.length) updateDesignVisualization();
+  }
 }
 
 function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson) {
@@ -1264,7 +1404,7 @@ async function init() {
     renderLegend();
     renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson);
     initRouteFilter();
-    initDesignTool();
+    initDesignTool(studiesGeojson, mergedStops);
     renderStudyCards(studiesGeojson);
     renderNeedAnalysis(needAnalysis);
     renderTrending(mergedTrending);
