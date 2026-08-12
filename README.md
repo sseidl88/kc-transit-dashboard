@@ -1,7 +1,9 @@
 # kc-transit-dashboard
 
 Daily-refreshed scheduled-service dashboard covering two Kansas City-area
-transit agencies: KCATA and RideKC Johnson County Transit.
+transit agencies: KCATA and RideKC Johnson County Transit — built around one
+question: now that riding costs money again, is service actually reaching
+the people who need it most?
 
 **Live site:** GitHub Pages serving from `docs/` on `main`
 
@@ -27,6 +29,11 @@ pulled daily by GitHub Actions:
   population figures, plus an illustrative route line through each study's own named
   streets. Clearly marked as not-a-confirmed-alignment — see [CLAUDE.md](CLAUDE.md)
   for exactly what's real data versus this dashboard's own approximation
+- **Where should KC invest next?** — with fares back as of June 2026, a plain,
+  explainable "priority zone" rule (above-median car-free households + far from the
+  frequent network) built from real Census data, compared against the 3 corridors
+  above to see whether current planning actually matches where the need is highest.
+  It doesn't, for 2 of 3 — reported honestly either way
 - A weekday-vs-weekend service equity view — routes with strong weekday service but
   little or no weekend coverage
 - A side-by-side comparison tool for any two routes (shareable via URL), plus a

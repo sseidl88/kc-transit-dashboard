@@ -1,7 +1,7 @@
 <title>KC Transit Service Dashboard</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Daily-refreshed scheduled-service dashboard for KCATA/RideKC routes, built from KCATA's public GTFS feed.">
+<meta name="description" content="Daily-refreshed KC transit dashboard: now that fares are back, is service reaching the people who need it most?">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="style.css">
@@ -12,10 +12,11 @@
       <div>
         <h1>KC Transit Service Dashboard</h1>
         <p class="sub">
-          Scheduled-service metrics for KCATA and RideKC Johnson County Transit, derived daily from their
-          public GTFS feeds — frequency, span of service, and coverage across the network. Neither agency
-          publishes an open real-time or ridership API, so this tracks <em>scheduled</em> service, not live
-          on-time performance. See the note in the footer.
+          Bus fares returned to Kansas City on June 1, 2026 after roughly six years free — so where the
+          service actually reaches now matters more than it did when riding was free. Built from KCATA and
+          RideKC Johnson County Transit's public GTFS feeds, pulled daily, this tracks <em>scheduled</em>
+          service (neither agency publishes an open real-time or ridership API — see the footer) to ask one
+          question: is transit investment reaching the people who need it most?
         </p>
       </div>
       <button class="theme-toggle" id="theme-toggle" type="button">Theme: System</button>
@@ -76,6 +77,52 @@
       each study covers, not a ridership forecast — nobody has published one of those yet for these corridors.
     </p>
     <div class="study-cards" id="study-cards"></div>
+  </section>
+
+  <section id="need-section" style="display:none">
+    <h2>Where should KC invest next?</h2>
+    <p class="section-note">
+      Bus fares returned June 1, 2026 after roughly six years free — so where the service actually shows up
+      matters more than ever. A block group is flagged <strong>priority</strong> here if it's both above the
+      median share of car-free households <em>and</em> more than half a mile from the frequent (≤15 min)
+      network — a plain, explainable rule, not a hidden weighted score. Population and vehicle-access figures
+      are 2022 Census ACS data for Jackson &amp; Clay counties (MO) and Wyandotte county (KS) — the same
+      three-county footprint used for the study corridors above, not the full two-agency service area.
+    </p>
+    <div class="stat-row" id="need-stats"></div>
+    <h3 class="subhead">Do the corridors under study match the need?</h3>
+    <p class="section-note">
+      For each corridor above, the share of its own block groups that are priority zones, compared to the
+      citywide rate. Not a verdict on why a corridor was chosen — plenty of good reasons (ridership, economic
+      development, cost, connectivity) aren't captured by this metric — just what the need data alone says.
+    </p>
+    <div class="table-card">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Corridor</th>
+            <th class="num">Priority block groups</th>
+            <th class="num">Priority rate</th>
+            <th>Vs. citywide rate</th>
+          </tr>
+        </thead>
+        <tbody id="need-corridor-tbody"></tbody>
+      </table>
+    </div>
+    <h3 class="subhead">Top priority areas citywide</h3>
+    <div class="table-card" style="margin-top:0.6rem">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th class="num">Population</th>
+            <th class="num">Car-free households</th>
+            <th class="num">Distance to frequent network</th>
+          </tr>
+        </thead>
+        <tbody id="need-top-tbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="district-section" style="display:none">
@@ -802,6 +849,42 @@ function findDistrict(lat, lon, districtsGeojson) {
   return null;
 }
 
+function renderNeedAnalysis(need) {
+  if (!need) return;
+  document.getElementById("need-section").style.display = "";
+
+  document.getElementById("need-stats").innerHTML = [
+    { label: "Priority block groups", value: fmtNum(need.total_priority_block_groups) },
+    { label: "People in priority areas", value: fmtNum(need.total_priority_population) },
+    { label: "Car-free households in priority areas", value: fmtNum(need.total_priority_no_vehicle_households) },
+    { label: "Citywide priority rate", value: `${Math.round(need.citywide_priority_rate * 100)}%` },
+  ].map(t => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+
+  document.getElementById("need-corridor-tbody").innerHTML = need.corridor_comparison.map(c => {
+    const rateStr = c.priority_rate === null ? "—" : `${Math.round(c.priority_rate * 100)}%`;
+    const above = c.priority_rate !== null && c.priority_rate > c.citywide_priority_rate;
+    const verdictClass = c.priority_rate === null ? "" : (above ? "up" : "down");
+    const verdictText = c.priority_rate === null ? "n/a"
+      : above ? `above (citywide ${Math.round(c.citywide_priority_rate * 100)}%)`
+              : `below (citywide ${Math.round(c.citywide_priority_rate * 100)}%)`;
+    return `
+      <tr>
+        <td>${c.name}</td>
+        <td class="num">${c.priority_block_groups_in_area} of ${c.block_groups_in_area}</td>
+        <td class="num">${rateStr}</td>
+        <td><span class="delta ${verdictClass}">${verdictText}</span></td>
+      </tr>`;
+  }).join("");
+
+  document.getElementById("need-top-tbody").innerHTML = need.top20.map(r => `
+    <tr>
+      <td>${r.area_label || r.geoid}</td>
+      <td class="num">${fmtNum(r.population)}</td>
+      <td class="num">${(r.no_vehicle_share * 100).toFixed(0)}% (${fmtNum(r.no_vehicle_households)})</td>
+      <td class="num">${r.miles_to_frequent_network} mi</td>
+    </tr>`).join("");
+}
+
 function renderDistrictCoverage(stopsGeojson, districtsGeojson) {
   if (!districtsGeojson || !districtsGeojson.features || districtsGeojson.features.length === 0) return;
   const counts = new Map(); // district -> { frequent, total }
@@ -985,6 +1068,7 @@ async function init() {
     const baseline = await loadJSON("data/baseline_2020.json").catch(() => null);
     const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
     const studiesGeojson = await loadJSON("data/streetcar_studies.geojson").catch(() => null);
+    const needAnalysis = await loadJSON("data/transit_need.json").catch(() => null);
 
     routesData = bundles.flatMap(b => b.routes);
     kcataRoutesData = (bundles.find(b => b.agency.id === "kcata") || {}).routes || [];
@@ -1006,6 +1090,7 @@ async function init() {
     renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson);
     initRouteFilter();
     renderStudyCards(studiesGeojson);
+    renderNeedAnalysis(needAnalysis);
     renderTrending(mergedTrending);
     renderHistorical(baseline, kcataRoutesData);
     renderEquity();

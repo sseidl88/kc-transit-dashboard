@@ -103,6 +103,11 @@ section > p.section-note {
   font-size: 0.85rem;
   max-width: 68ch;
 }
+h3.subhead {
+  font-size: 0.9rem;
+  margin: 1.4rem 0 0.15rem;
+  color: var(--text-primary);
+}
 
 /* Stat tiles */
 .stat-row {

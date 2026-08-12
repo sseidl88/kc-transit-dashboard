@@ -265,6 +265,58 @@ flag, this isn't meant to be a repeatable pipeline step.
 
 ---
 
+## Transit-need priority analysis (`docs/data/transit_need.json`)
+
+The dashboard's thesis section: bus fares returned June 1, 2026 after ~6
+years free (RideKC/KCATA — see their news release), so **where the service
+actually reaches now carries more weight than it did when riding was free**.
+This answers "where should KC invest next?" with an explainable rule, not an
+opaque score: a block group is **priority** if it's both above the
+three-county median share of car-free households (ACS `B25044`, owner +
+renter occupied units reporting zero vehicles available ÷ total occupied
+units) **and** more than 0.5 miles from the nearest stop on a ≤15-min route
+(haversine distance to `stops.geojson`/`jocounty/stops.geojson` points
+flagged `frequent`, both agencies). Same one-time-key Census pipeline as the
+study corridors — no new secret, no daily automation.
+
+**The payoff comparison**: for each of the 3 corridors in
+`streetcar_studies.geojson`, what share of *its own* block groups are
+priority zones, versus the citywide rate (41%). The real result, computed
+honestly rather than steered toward a conclusion: **East-West (23%) and
+18th & Vine (14%) are below the citywide priority rate; North Kansas City
+(100%, but only 2 block groups — a small-sample caveat repeated from the
+studies section) is above it.** Two of three currently-studied corridors
+don't rank as especially high-need by this metric — stated plainly in the
+section copy alongside the honest caveat that ridership, cost, economic
+development, and connectivity are all legitimate reasons a corridor gets
+studied that this metric doesn't capture. The point isn't "KCATA is wrong,"
+it's "here's one more input worth weighing."
+
+**A real bug caught before shipping this**: the first version of the
+corridor comparison came back as *zero* priority block groups inside either
+study area, which was suspicious enough to check by hand — turned out to be
+a lat/lon tuple-order swap when re-reading `streetcar_studies.geojson`'s
+rings back out of GeoJSON's `[lon, lat]` order (`(lat, lon) for lon, lat in
+coordinates` instead of `(lon, lat) for lon, lat in coordinates`), which
+silently fed every ring point into `point_in_ring()` on the wrong axis.
+Fixed by keeping the ring in GeoJSON's own `[lon, lat]` order throughout,
+matching the convention `build_studies.py` and the frontend's own
+`pointInGeometry()` already use — same lesson as the North KC ring-ordering
+bug one section up: verify a surprising geographic result against a second,
+independent check before trusting it.
+
+**No new map layer** — deliberately. This ships as stat tiles + two ranked
+tables in `docs/index.html` (`renderNeedAnalysis()`), not another Leaflet
+overlay, specifically because the map had just been decluttered (route
+filter + collapsing three overlay checkboxes into one `<select>`) and
+piling a fifth layer back on would undo that.
+
+Like the study corridors, this is a **one-time manual build**, not a daily
+pipeline step — rerun the geocode → TIGERweb → ACS → reverse-geocode chain
+by hand if the underlying GTFS or study corridors change enough to warrant it.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
