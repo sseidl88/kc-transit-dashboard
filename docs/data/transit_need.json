@@ -250,9 +250,9 @@
     {
       "id": "vine",
       "name": "18th & Vine Jazz District Extension",
-      "block_groups_in_area": 7,
+      "block_groups_in_area": 5,
       "priority_block_groups_in_area": 1,
-      "priority_rate": 0.143,
+      "priority_rate": 0.2,
       "citywide_priority_rate": 0.412
     }
   ]

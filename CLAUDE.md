@@ -237,11 +237,29 @@ treatment as `baseline_2020.json` and `kcmo_council_districts.geojson`:
   Boulevard and Van Brunt Boulevard") via Nominatim (free, no key), then
   **snapped to real streets via OSRM** (`scripts` in the note below) instead
   of left as straight segments between the geocoded points — same router the
-  design tool uses, so the whole page is visually consistent. 18th & Vine has
-  no published street-level detail at all beyond "push the line east into the
-  18th and Vine corridor," so its line is this dashboard's best plausible
-  guess (18th St to Vine St) — flagged as such in its card, more so than the
-  other two.
+  design tool uses, so the whole page is visually consistent.
+  - **East-West's line runs 39th St east to Main St, then north on Main to
+    Linwood Blvd, then east on Linwood** — not a straight run along 39th the
+    whole way. Main St is where this illustrative line meets the existing
+    KC Streetcar alignment, so routing the connection through Main (rather
+    than jogging east on 39th to Troost) reflects how a real extension would
+    actually tie into the built network. Finding the Main St/Linwood Blvd
+    waypoint took an extra step: Nominatim's `&`-style intersection queries
+    return empty for this pair, and house-number-style fallback queries on
+    each street landed at inconsistent points rather than the real crossing.
+    Resolved instead by pulling both streets' full way geometry from the
+    **Overpass API** (`overpass-api.de`, free, no key) and finding their
+    literal shared OSM node — exact by construction, no geocoding-text
+    guesswork. (Also had to search under "Linwood Boulevard" *and* "East
+    Linwood Boulevard" — OSM splits the street into direction-prefixed way
+    names, so a name-exact query for just "Linwood Boulevard" alone missed
+    the segment that actually crosses Main St.)
+  - **18th & Vine's line ends at The Paseo** — 18th St east from the existing
+    line to The Paseo, its only published terminus detail. Shorter than a
+    line pushed all the way to Vine St/Prospect Ave (which was this
+    dashboard's earlier, unpublished-detail guess before the terminus was
+    confirmed) — The Paseo sits west of Vine St, so correcting the endpoint
+    shortened the line, not lengthened it.
 - **Snapping gotcha**: North KC's route originally used the ASB Bridge as its
   river-crossing waypoint (it's the real study's own stated west boundary),
   but that bridge is rail/pedestrian-only — not part of OSRM's drivable
@@ -316,9 +334,13 @@ study corridors — no new secret, no daily automation.
 `streetcar_studies.geojson`, what share of *its own* block groups are
 priority zones, versus the citywide rate (41%). The real result, computed
 honestly rather than steered toward a conclusion: **East-West (23%) and
-18th & Vine (14%) are below the citywide priority rate; North Kansas City
+18th & Vine (20%) are below the citywide priority rate; North Kansas City
 (100%, but only 2 block groups — a small-sample caveat repeated from the
-studies section) is above it.** Two of three currently-studied corridors
+studies section) is above it.** (18th & Vine's rate moved from an earlier
+14%/7-block-group figure to 20%/5 block groups after its illustrative line's
+terminus was corrected to The Paseo — a shorter line, fewer block groups in
+its 0.5-mile buffer, same below-citywide conclusion either way.) Two of three
+currently-studied corridors
 don't rank as especially high-need by this metric — stated plainly in the
 section copy alongside the honest caveat that ridership, cost, economic
 development, and connectivity are all legitimate reasons a corridor gets
@@ -542,6 +564,26 @@ than trying to remember what was on before. The "today" side is drawn as a
 single flat color, not the usual frequency-tier ramp — this comparison is
 about *where* lines exist, not how frequent they are, and reusing the
 multi-color ramp here would fight the slider's own left/right visual split.
+
+**A real bug hit after shipping this**: the slider divider dragged fine but
+the clip never visibly took effect — both layers stayed fully visible
+regardless of divider position. Root cause: Leaflet panes are
+`position:absolute` with no explicit size of their own (their canvas child is
+also absolutely positioned, for panning), so a freshly created pane can have
+an effective 0×0 box. `clip-path: inset()` percentages resolve against the
+*clipped element's own* box, so every inset on a 0×0 pane resolves to 0
+regardless of the percentage requested — clipping silently no-ops. Switching
+to `width:100%; height:100%` isn't a safe fix either: the pane's own
+containing block (Leaflet's internal `_mapPane`) likely has no defined size
+either, so percentage sizing is just as unreliable one level up. Fixed with
+`applySliderPaneSize()` — sets each slider pane's width/height to
+**explicit pixel values** from `leafletMap.getSize()`, called once on
+entering slider mode and re-applied on window `resize` while it's active
+(cleaned up in `exitSliderMode()`). General lesson, same shape as the
+North KC bridge-snap bug above: a CSS mechanism that depends on an element's
+own box (percentage sizing, percentage clip-path) needs that box to actually
+be defined by something — don't assume a `position:absolute` element has a
+size just because it has content.
 
 ---
 

@@ -648,6 +648,16 @@ function onSliderPointerUp() {
   window.removeEventListener("pointermove", onSliderPointerMove);
 }
 
+function applySliderPaneSize() {
+  const size = leafletMap.getSize(); // {x, y} in pixels -- see enterSliderMode() for why not "100%"
+  for (const name of ["sliderTodayPane", "sliderHistoricPane"]) {
+    const pane = leafletMap.getPane(name);
+    if (!pane) continue;
+    pane.style.width = size.x + "px";
+    pane.style.height = size.y + "px";
+  }
+}
+
 function enterSliderMode() {
   if (!historicGeojsonData || !routeGeojson) return;
   const container = leafletMap.getContainer();
@@ -664,8 +674,22 @@ function enterSliderMode() {
 
   leafletMap.createPane("sliderTodayPane");
   leafletMap.createPane("sliderHistoricPane");
-  leafletMap.getPane("sliderTodayPane").style.zIndex = 450;
-  leafletMap.getPane("sliderHistoricPane").style.zIndex = 451;
+  const todayPane = leafletMap.getPane("sliderTodayPane");
+  const historicPane = leafletMap.getPane("sliderHistoricPane");
+  todayPane.style.zIndex = 450;
+  historicPane.style.zIndex = 451;
+  // Leaflet panes are position:absolute with no explicit size -- their own
+  // canvas child is also absolutely positioned (for panning), so the pane
+  // itself can end up with a zero-size box. clip-path: inset()'s percentages
+  // are relative to the clipped element's *own* box, so against a 0x0 pane
+  // every inset resolves to 0 regardless of the percentage requested --
+  // clipping silently does nothing. "100%" isn't safe here either: the
+  // pane's containing block (Leaflet's internal _mapPane) has no defined
+  // size of its own, so percentage width/height would just as likely
+  // resolve to 0 again. Use the map's actual pixel size instead, and keep
+  // it in sync if the window is resized while this mode is active.
+  applySliderPaneSize();
+  window.addEventListener("resize", applySliderPaneSize);
 
   sliderTodayLayer = L.geoJSON(routeGeojson, {
     renderer: L.canvas({ pane: "sliderTodayPane" }),
@@ -705,6 +729,7 @@ function exitSliderMode() {
   if (sliderDividerEl) sliderDividerEl.remove();
   sliderLabelEls.forEach((el) => el.remove());
   sliderLabelEls = [];
+  window.removeEventListener("resize", applySliderPaneSize);
   window.removeEventListener("pointerup", onSliderPointerUp);
   window.removeEventListener("pointermove", onSliderPointerMove);
 
