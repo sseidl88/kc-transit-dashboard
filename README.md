@@ -15,7 +15,14 @@ pulled daily by GitHub Actions:
 - A map of every weekday route across both agencies, colored by scheduled frequency
   (opens showing just the frequent network by default — full network is one click
   away), with toggles for transfer hubs (stops served by 3+ routes), a frequent-network
-  walkshed (¼-mile buffer around frequent stops), and overall stop density
+  walkshed (¼-mile buffer around frequent stops), overall stop density, and TOD
+  opportunity zones (real KC parcels zoned single-family-only despite sitting within
+  ¼ mile of frequent transit — a small, honestly-reported finding: 7 parcels, not
+  hundreds)
+- **How much longer does the bus actually take?** — click two points on the map to
+  compare estimated transit time (walk + wait + ride, using each route's own
+  scheduled speed) against driving (OSRM). Single-route only — if no direct route
+  serves both points, it says so instead of guessing at a transfer
 - Frequent-network access by Kansas City, MO council district — a genuine coverage/
   equity view, not just a map
 - Trip frequency (headway), span of service, stop count, and route length per route
@@ -33,6 +40,9 @@ pulled daily by GitHub Actions:
   straight segments. Clearly marked as not-a-confirmed-alignment — see
   [CLAUDE.md](CLAUDE.md) for exactly what's real data versus this dashboard's own
   approximation
+- **How would this actually get paid for?** — real funding facts for the two built
+  extensions (a federal Section 5309 grant + a voter-approved local taxing district),
+  not a funding plan for the proposed ones (none has a confirmed source yet)
 - **Design your own extension** — click points on the map to sketch a route; it snaps
   to real streets via [OSRM](https://project-osrm.org/) (free, no key) and estimates
   length, cost, and population served live in the browser, using the same benchmarks
@@ -46,7 +56,8 @@ pulled daily by GitHub Actions:
   sepia. Confidence is marked per route (high/medium/low) depending on how legible
   that part of the map actually was — see [CLAUDE.md](CLAUDE.md) for specifics.
   One unplanned finding: the old Country Club line ran almost the exact corridor of
-  today's Main Street Extension
+  today's Main Street Extension. A "Compare 1948 ↔ Today" button turns this into a
+  draggable before/after slider right on the map instead of a plain on/off toggle
 - **Where should KC invest next?** — with fares back as of June 2026, a plain,
   explainable "priority zone" rule (above-median car-free households + far from the
   frequent network) built from real Census data, compared against the 3 corridors

@@ -398,8 +398,11 @@ def build_dataset(zf, today):
             if seq > bounds[2]:
                 bounds[2], bounds[3] = seq, t
 
-    # Aggregate start times per route, restricted to each route's dominant direction.
+    # Aggregate start times + one-way trip durations per route, restricted to
+    # each route's dominant direction (a mixed-direction average would be
+    # meaningless for a route that's, say, uphill one way).
     route_start_times = defaultdict(list)
+    route_durations_min = defaultdict(list)
     route_span = {}
     for trip_id, bounds in trip_bounds.items():
         info = trip_info[trip_id]
@@ -413,6 +416,8 @@ def build_dataset(zf, today):
         dominant_direction = route_direction_votes[route_id].most_common(1)[0][0]
         if info["direction_id"] == dominant_direction and start_t is not None:
             route_start_times[route_id].append(start_t)
+            if end_t is not None and end_t > start_t:
+                route_durations_min[route_id].append((end_t - start_t) / 60)
 
     # Shape geometry lookup.
     shape_points = defaultdict(list)
@@ -480,6 +485,13 @@ def build_dataset(zf, today):
                 },
             })
 
+        avg_speed_mph = None
+        durations = route_durations_min.get(route_id, [])
+        if durations and route_length_miles:
+            median_duration_hours = statistics.median(durations) / 60
+            if median_duration_hours > 0:
+                avg_speed_mph = round(route_length_miles / median_duration_hours, 1)
+
         routes_out.append({
             "route_id": route_id,
             "route_short_name": row.get("route_short_name") or "",
@@ -494,6 +506,7 @@ def build_dataset(zf, today):
             "span_end": format_clock(span[1]),
             "stop_count": len(route_stops.get(route_id, ())),
             "route_length_miles": route_length_miles,
+            "avg_speed_mph": avg_speed_mph,
             "has_geometry": route_length_miles is not None,
         })
 

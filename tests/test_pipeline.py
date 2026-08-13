@@ -233,6 +233,12 @@ def test_build_dataset_computes_expected_metrics():
     assert r["route_length_miles"] is not None and r["route_length_miles"] > 0
     assert r["has_geometry"] is True
 
+    # Each fixture trip's two stops are 5 scheduled minutes apart -> avg
+    # speed should be route_length_miles / (5/60) hours, within rounding.
+    assert r["avg_speed_mph"] is not None and r["avg_speed_mph"] > 0
+    expected_speed = r["route_length_miles"] / (5 / 60)
+    assert abs(r["avg_speed_mph"] - expected_speed) < 0.5
+
     assert len(geojson["features"]) == 1
     assert meta["route_count"] == 1
     assert meta["total_weekday_trips"] == 3

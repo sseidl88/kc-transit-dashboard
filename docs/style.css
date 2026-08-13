@@ -140,6 +140,56 @@ h3.subhead {
   border: 1px solid var(--border);
   background: var(--surface-1);
 }
+.slider-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #8b5a2b;
+  cursor: ew-resize;
+  z-index: 650; /* above Leaflet's overlay panes (400s), below its popup pane (700) */
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.6);
+}
+.slider-divider::after {
+  content: "↔";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: #8b5a2b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.slider-label {
+  position: absolute;
+  top: 8px;
+  z-index: 650;
+  background: rgba(11,11,11,0.72);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.trip-point-marker {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #eda100;
+  color: #0b0b0b;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
 .legend-row {
   display: flex;
   flex-wrap: wrap;
@@ -482,6 +532,31 @@ footer a { color: var(--text-muted); }
   color: var(--text-muted);
   margin-top: 0.5rem;
 }
+
+/* Funding cards */
+.funding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+.funding-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+}
+.funding-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.92rem;
+}
+.funding-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.funding-card p strong { color: var(--text-primary); }
 
 /* Search */
 .search-input {

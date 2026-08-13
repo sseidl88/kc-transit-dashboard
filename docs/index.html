@@ -54,18 +54,44 @@
           <option value="hubs">Transfer hubs (3+ routes)</option>
           <option value="walkshed">Frequent-network walkshed (¼ mi)</option>
           <option value="density">Stop density</option>
+          <option value="tod">TOD opportunity zones (exclusionary zoning near frequent transit)</option>
         </select>
       </label>
       <label><input type="checkbox" id="studies-toggle"> Show proposed extensions (under study)</label>
       <label><input type="checkbox" id="historic-toggle"> Show 1948 streetcar network</label>
+      <button class="theme-toggle" id="slider-toggle" type="button">Compare 1948 ↔ Today</button>
     </div>
     <div id="map"></div>
+    <p class="section-note" id="slider-hint" style="display:none; margin-top:0.4rem">
+      Drag the vertical line — 1948's network on the left, today's on the right. Both shown as plain lines
+      here (no frequency coloring) so the comparison itself stays the focus.
+    </p>
     <div class="legend-row" id="legend-row"></div>
     <p class="section-note" id="walkshed-note" style="display:none; margin-top:0.5rem">
       Shaded circles approximate a quarter-mile walk from any stop on a ≤15-min route — a rough
       "frequent-network walkshed," not a true street-network isochrone. Gaps in the shading are the
       closest thing here to a transit-desert map.
     </p>
+    <p class="section-note" id="tod-note" style="margin-top:0.5rem"></p>
+  </section>
+
+  <section id="trip-section">
+    <h2>How much longer does the bus actually take?</h2>
+    <p class="section-note">
+      Click two points on the map above — a start and an end — to compare estimated transit time against
+      driving. Transit time is walk-to-stop + average wait (half the route's headway) + ride + walk-from-stop,
+      using each route's own scheduled speed; driving comes from OSRM. This only considers a single
+      <strong>direct</strong> route with no transfer — if nothing serves both points within a half-mile walk,
+      it says so rather than guessing at a transfer. A real trip planner this is not; a rough sense of the
+      gap, it is.
+    </p>
+    <div class="design-controls">
+      <button class="theme-toggle" id="trip-toggle" type="button">Start comparing on the map above</button>
+      <button class="theme-toggle" id="trip-clear" type="button" disabled>Clear</button>
+      <span class="design-hint" id="trip-hint"></span>
+    </div>
+    <div class="stat-row" id="trip-stats" style="display:none"></div>
+    <p class="section-note" id="trip-detail"></p>
   </section>
 
   <section id="design-section">
@@ -129,6 +155,49 @@
       estimate, which none of these studies has published either.
     </p>
     <div class="study-cards" id="study-cards"></div>
+  </section>
+
+  <section id="funding-section">
+    <h2>How would this actually get paid for?</h2>
+    <p class="section-note">
+      The cost estimates above answer "how much" — this is "from where," using how the two most recent
+      extensions were actually funded, not a funding plan for the proposed corridors (none has a confirmed
+      funding source yet).
+    </p>
+    <div class="funding-grid">
+      <div class="funding-card">
+        <h3>Federal: Section 5309 "New Starts"</h3>
+        <p>
+          The FTA's Capital Investment Grants program funded roughly <strong>half</strong> of the Main Street
+          Extension's $351.71M cost — a $174.06M grant, about 49.5%. It's a competitive federal program, not a
+          guarantee: a project has to be far enough along (ridership projections, an environmental review,
+          engineering work) to even apply, all of which costs money before a grant is secured.
+        </p>
+      </div>
+      <div class="funding-card">
+        <h3>Local: a voter-approved Transportation Development District</h3>
+        <p>
+          The other roughly half came from the <strong>Main Street Rail TDD</strong> — a special taxing
+          district about ⅓ mile on each side of the route, funded by a property tax surcharge plus a 1%
+          sales tax on businesses inside it. It worked financially because that corridor runs through
+          "the most densely developed and highly valued property in the city" (downtown, Crossroads, Plaza) —
+          high property and sales-tax revenue per mile of track.
+        </p>
+      </div>
+      <div class="funding-card">
+        <h3>Why that math doesn't automatically repeat</h3>
+        <p>
+          KC's own East-West Transit Study says explicitly that a TDD along that corridor <strong>likely
+          wouldn't raise enough revenue</strong> to match federal funding — it runs through less commercially
+          developed areas than Main Street, so a ⅓-mile tax district there raises less money per mile. The
+          study points to city/county/regional funding or private sources instead, none identified yet. Worth
+          reading alongside the need-priority analysis below: East-West is also the corridor that ranks
+          <em>below</em> the citywide priority rate — lower commercial density plausibly pulls both numbers
+          down together, though that's an observation, not a claim this dashboard can prove causally.
+          North Kansas City and 18th & Vine don't have a public funding mechanism identified yet either.
+        </p>
+      </div>
+    </div>
   </section>
 
   <section id="need-section" style="display:none">
@@ -523,6 +592,142 @@ function buildDensityLayer(stopsGeojson) {
   }
 }
 
+// Parcels zoned for single-family-only development (KC's own R-80/R-20/R-10/
+// R-7.5/R-6/AG-R codes — larger minimum lot size = lower allowed density,
+// per kcmo.gov's own zoning code) that also sit within a quarter mile of a
+// frequent (<=15 min) stop — the classic "zoned against the transit
+// investment already there" TOD-opportunity pattern. Real Open Data KC
+// parcel geometry, fetched once (zoning changes rarely).
+let todLayer;
+
+function buildTodLayer(todGeojson) {
+  todLayer = L.geoJSON(todGeojson, {
+    style: () => ({
+      color: "#1baf7a",
+      weight: 1.5,
+      opacity: 0.9,
+      fillColor: "#1baf7a",
+      fillOpacity: 0.25,
+    }),
+    onEachFeature: (feature, lyr) => {
+      const p = feature.properties;
+      lyr.bindPopup(
+        `<b>Zoned ${p.classification}</b>
+         <div class="study-popup">${p.acres} acres, ${p.distance_to_frequent_stop_miles} mi from the
+         nearest frequent stop<br><br>Single-family-only zoning within easy walk of frequent transit —
+         zoning classification, not necessarily current land use (could already be a park, church,
+         school, etc.).</div>`
+      );
+    },
+  });
+}
+
+// --- 1948-vs-today comparison slider. Two dedicated Leaflet panes (each with
+// its own canvas renderer) drawn on top of the normal map, clipped by a
+// draggable divider via CSS clip-path -- Leaflet has no built-in support for
+// splitting a single vector layer's rendering, and clipping the *shared*
+// canvas the rest of the map uses (map-wide preferCanvas:true) isn't
+// possible from CSS since it's one pixel buffer, not separate DOM nodes per
+// layer. Dedicated panes sidestep that: each is its own DOM element.
+let sliderMode = false;
+let sliderTodayLayer, sliderHistoricLayer, sliderDividerEl, sliderLabelEls = [];
+let historicGeojsonData = null;
+
+function onSliderPointerMove(e) {
+  const rect = leafletMap.getContainer().getBoundingClientRect();
+  const pct = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+  sliderDividerEl.style.left = pct + "%";
+  leafletMap.getPane("sliderHistoricPane").style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  leafletMap.getPane("sliderTodayPane").style.clipPath = `inset(0 0 0 ${pct}%)`;
+}
+function onSliderPointerDown(e) {
+  e.preventDefault();
+  window.addEventListener("pointermove", onSliderPointerMove);
+}
+function onSliderPointerUp() {
+  window.removeEventListener("pointermove", onSliderPointerMove);
+}
+
+function enterSliderMode() {
+  if (!historicGeojsonData || !routeGeojson) return;
+  const container = leafletMap.getContainer();
+
+  // Clear away anything that would visually compete with the two comparison
+  // layers -- this mode is meant to isolate the comparison, not add a 5th
+  // thing on top of it.
+  if (routeLayer) leafletMap.removeLayer(routeLayer);
+  if (studiesLayer) leafletMap.removeLayer(studiesLayer);
+  if (historicLayer) leafletMap.removeLayer(historicLayer);
+  for (const layer of [hubLayer, walkshedLayer, densityLayer, todLayer]) {
+    if (layer) leafletMap.removeLayer(layer);
+  }
+
+  leafletMap.createPane("sliderTodayPane");
+  leafletMap.createPane("sliderHistoricPane");
+  leafletMap.getPane("sliderTodayPane").style.zIndex = 450;
+  leafletMap.getPane("sliderHistoricPane").style.zIndex = 451;
+
+  sliderTodayLayer = L.geoJSON(routeGeojson, {
+    renderer: L.canvas({ pane: "sliderTodayPane" }),
+    style: () => ({ color: "#2a78d6", weight: 2.5, opacity: 0.9 }),
+  }).addTo(leafletMap);
+  sliderHistoricLayer = L.geoJSON(historicGeojsonData, {
+    renderer: L.canvas({ pane: "sliderHistoricPane" }),
+    style: () => ({ color: "#8b5a2b", weight: 2.5, opacity: 0.9, dashArray: "4 4" }),
+  }).addTo(leafletMap);
+
+  sliderDividerEl = document.createElement("div");
+  sliderDividerEl.className = "slider-divider";
+  sliderDividerEl.addEventListener("pointerdown", onSliderPointerDown);
+  container.appendChild(sliderDividerEl);
+
+  const leftLabel = document.createElement("div");
+  leftLabel.className = "slider-label";
+  leftLabel.textContent = "1948";
+  leftLabel.style.left = "10px";
+  const rightLabel = document.createElement("div");
+  rightLabel.className = "slider-label";
+  rightLabel.textContent = "Today";
+  rightLabel.style.right = "10px";
+  container.appendChild(leftLabel);
+  container.appendChild(rightLabel);
+  sliderLabelEls = [leftLabel, rightLabel];
+
+  window.addEventListener("pointerup", onSliderPointerUp);
+  sliderDividerEl.style.left = "50%";
+  leafletMap.getPane("sliderHistoricPane").style.clipPath = "inset(0 50% 0 0)";
+  leafletMap.getPane("sliderTodayPane").style.clipPath = "inset(0 0 0 50%)";
+}
+
+function exitSliderMode() {
+  if (sliderTodayLayer) leafletMap.removeLayer(sliderTodayLayer);
+  if (sliderHistoricLayer) leafletMap.removeLayer(sliderHistoricLayer);
+  if (sliderDividerEl) sliderDividerEl.remove();
+  sliderLabelEls.forEach((el) => el.remove());
+  sliderLabelEls = [];
+  window.removeEventListener("pointerup", onSliderPointerUp);
+  window.removeEventListener("pointermove", onSliderPointerMove);
+
+  // Restore whatever the normal controls say should be visible.
+  const frequentOnly = document.getElementById("frequent-only-toggle").checked;
+  buildRouteLayer(routeGeojson, frequentOnly);
+  if (document.getElementById("studies-toggle").checked) studiesLayer.addTo(leafletMap);
+  if (document.getElementById("historic-toggle").checked) historicLayer.addTo(leafletMap);
+  const overlayValue = document.getElementById("overlay-select").value;
+  const overlayLookup = { hubs: hubLayer, walkshed: walkshedLayer, density: densityLayer, tod: todLayer };
+  if (overlayLookup[overlayValue]) overlayLookup[overlayValue].addTo(leafletMap);
+}
+
+function initHistoricSlider() {
+  const btn = document.getElementById("slider-toggle");
+  btn.addEventListener("click", () => {
+    sliderMode = !sliderMode;
+    btn.classList.toggle("active", sliderMode);
+    document.getElementById("slider-hint").style.display = sliderMode ? "" : "none";
+    if (sliderMode) enterSliderMode(); else exitSliderMode();
+  });
+}
+
 // Potential future streetcar/transit extensions — none of these are built,
 // funded, or even aligned yet. Styled deliberately unlike real service
 // (dashed, violet — not the frequency-tier blue ramp) so it can never be
@@ -577,6 +782,7 @@ let historicLayer;
 const HISTORIC_CONFIDENCE_DASH = { high: "1 0", medium: "4 4", low: "1 8" };
 
 function buildHistoricLayer(historicGeojson) {
+  historicGeojsonData = historicGeojson;
   historicLayer = L.geoJSON(historicGeojson, {
     style: (feature) => ({
       color: "#8b5a2b",
@@ -844,6 +1050,8 @@ function initDesignTool(studiesGeojson, stopsGeojson) {
     designMode = !designMode;
     toggleBtn.textContent = designMode ? "Stop designing" : "Start designing on the map above";
     toggleBtn.classList.toggle("active", designMode);
+    // Mutually exclusive with the trip-time tool -- both hijack map clicks.
+    if (designMode && tripTimeMode) document.getElementById("trip-toggle").click();
     if (leafletMap) leafletMap.getContainer().style.cursor = designMode ? "crosshair" : "";
     document.getElementById("design-hint").textContent = designMode
       ? (designPoints.length === 0 ? "Click the map to place your first point." : "Click to add another point.")
@@ -876,7 +1084,164 @@ function initDesignTool(studiesGeojson, stopsGeojson) {
   }
 }
 
-function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicGeojson) {
+// --- Transit-vs-driving trip time. Deliberately single-route-only: modeling
+// transfers well needs a real trip planner (a graph search over the whole
+// network with transfer penalties), which is out of scope for a napkin-math
+// tool. When nothing serves both points directly, it says so instead of
+// guessing at a transfer.
+const TRIP_WALK_SPEED_MPH = 3;
+const TRIP_WALK_THRESHOLD_MILES = 0.5;
+
+let tripTimeMode = false;
+let tripTimePoints = []; // [[lat,lon], [lat,lon]]
+let tripTimeMarkersLayer = null;
+let tripTimeRouteHighlight = null;
+
+function nearestPointOnLine(lat, lon, coordsLatLon) {
+  let best = { dist: Infinity, arcLength: 0 };
+  let cumulative = 0;
+  for (let i = 0; i < coordsLatLon.length; i++) {
+    const d = haversineMilesJS(lat, lon, coordsLatLon[i][0], coordsLatLon[i][1]);
+    if (d < best.dist) best = { dist: d, arcLength: cumulative };
+    if (i < coordsLatLon.length - 1) {
+      cumulative += haversineMilesJS(coordsLatLon[i][0], coordsLatLon[i][1], coordsLatLon[i + 1][0], coordsLatLon[i + 1][1]);
+    }
+  }
+  return best;
+}
+
+function findBestDirectTransitOption(origin, destination) {
+  let best = null;
+  for (const feature of (routeGeojson?.features || [])) {
+    const p = feature.properties;
+    const coords = feature.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+    if (coords.length < 2) continue;
+    const nearOrigin = nearestPointOnLine(origin[0], origin[1], coords);
+    const nearDest = nearestPointOnLine(destination[0], destination[1], coords);
+    if (nearOrigin.dist > TRIP_WALK_THRESHOLD_MILES || nearDest.dist > TRIP_WALK_THRESHOLD_MILES) continue;
+
+    const stats = routesData.find((r) => routeUid(r) === featureUid(p));
+    if (!stats || !stats.avg_speed_mph || !stats.headway_minutes) continue;
+    const rideMiles = Math.abs(nearDest.arcLength - nearOrigin.arcLength);
+    if (rideMiles < 0.05) continue; // origin/destination land on essentially the same spot
+
+    const walkToMin = (nearOrigin.dist / TRIP_WALK_SPEED_MPH) * 60;
+    const waitMin = stats.headway_minutes / 2;
+    const rideMin = (rideMiles / stats.avg_speed_mph) * 60;
+    const walkFromMin = (nearDest.dist / TRIP_WALK_SPEED_MPH) * 60;
+    const totalMin = walkToMin + waitMin + rideMin + walkFromMin;
+
+    if (!best || totalMin < best.totalMin) {
+      best = { route: stats, feature, walkToMin, waitMin, rideMin, walkFromMin, totalMin, rideMiles };
+    }
+  }
+  return best;
+}
+
+function renderTripResults(driveMin, transitOption) {
+  const el = document.getElementById("trip-stats");
+  el.style.display = "";
+  const tiles = [
+    { label: "Driving (OSRM)", value: `${Math.round(driveMin)} min` },
+  ];
+  if (transitOption) {
+    tiles.push({ label: "Transit (estimated)", value: `${Math.round(transitOption.totalMin)} min` });
+    const diff = Math.round(transitOption.totalMin - driveMin);
+    tiles.push({ label: "Difference", value: diff >= 0 ? `+${diff} min by transit` : `${-diff} min faster by transit` });
+  } else {
+    tiles.push({ label: "Transit", value: "No direct route" });
+  }
+  el.innerHTML = tiles.map((t) => `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`).join("");
+
+  const detailEl = document.getElementById("trip-detail");
+  if (transitOption) {
+    const r = transitOption.route;
+    detailEl.textContent = `Via ${r.route_short_name || r.route_id} — ${r.route_long_name}: ` +
+      `${Math.round(transitOption.walkToMin)} min walk to stop + ${Math.round(transitOption.waitMin)} min ` +
+      `average wait (${r.headway_minutes} min headway) + ${Math.round(transitOption.rideMin)} min ride ` +
+      `(${transitOption.rideMiles.toFixed(1)} mi at this route's own average scheduled speed) + ` +
+      `${Math.round(transitOption.walkFromMin)} min walk from stop.`;
+    if (tripTimeRouteHighlight) leafletMap.removeLayer(tripTimeRouteHighlight);
+    tripTimeRouteHighlight = L.geoJSON(transitOption.feature, {
+      style: () => ({ color: "#eda100", weight: 6, opacity: 0.7 }),
+    }).addTo(leafletMap);
+  } else {
+    detailEl.textContent = "No single route runs within a half-mile walk of both points — this tool " +
+      "doesn't model transfers, so it can't estimate this trip.";
+    if (tripTimeRouteHighlight) { leafletMap.removeLayer(tripTimeRouteHighlight); tripTimeRouteHighlight = null; }
+  }
+}
+
+function updateTripTimeVisualization() {
+  if (tripTimeMarkersLayer) leafletMap.removeLayer(tripTimeMarkersLayer);
+  tripTimeMarkersLayer = L.layerGroup();
+  const labels = ["A", "B"];
+  tripTimePoints.forEach((pt, i) => {
+    L.marker(pt, {
+      icon: L.divIcon({ className: "", html: `<div class="trip-point-marker">${labels[i]}</div>`, iconSize: [24, 24] }),
+    }).addTo(tripTimeMarkersLayer);
+  });
+  tripTimeMarkersLayer.addTo(leafletMap);
+
+  const hint = document.getElementById("trip-hint");
+  document.getElementById("trip-clear").disabled = tripTimePoints.length === 0;
+
+  if (tripTimePoints.length < 2) {
+    document.getElementById("trip-stats").style.display = "none";
+    document.getElementById("trip-detail").textContent = "";
+    if (tripTimeRouteHighlight) { leafletMap.removeLayer(tripTimeRouteHighlight); tripTimeRouteHighlight = null; }
+    hint.textContent = tripTimePoints.length === 0 ? "Click the map for a start point (A)." : "Click again for an end point (B).";
+    return;
+  }
+
+  hint.textContent = "Calculating…";
+  const [origin, destination] = tripTimePoints;
+  const coordStr = `${origin[1]},${origin[0]};${destination[1]},${destination[0]}`;
+  fetch(`https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=false`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.code !== "Ok" || !data.routes || !data.routes.length) throw new Error("No driving route");
+      const driveMin = data.routes[0].duration / 60;
+      const transitOption = findBestDirectTransitOption(origin, destination);
+      renderTripResults(driveMin, transitOption);
+      hint.textContent = "Click to start over, or Clear.";
+    })
+    .catch((err) => {
+      hint.textContent = "Couldn't get a driving estimate just now (the free routing service may be busy) — try again.";
+      console.error(err);
+    });
+}
+
+function onMapClickForTripTime(e) {
+  if (!tripTimeMode) return;
+  if (tripTimePoints.length >= 2) tripTimePoints = [];
+  tripTimePoints.push([e.latlng.lat, e.latlng.lng]);
+  updateTripTimeVisualization();
+}
+
+function initTripTimeTool() {
+  const toggleBtn = document.getElementById("trip-toggle");
+  const designToggleBtn = document.getElementById("design-toggle");
+
+  toggleBtn.addEventListener("click", () => {
+    tripTimeMode = !tripTimeMode;
+    toggleBtn.textContent = tripTimeMode ? "Stop comparing" : "Start comparing on the map above";
+    toggleBtn.classList.toggle("active", tripTimeMode);
+    // Mutually exclusive with the design tool -- both hijack map clicks.
+    if (tripTimeMode && designMode) designToggleBtn.click();
+    if (leafletMap) leafletMap.getContainer().style.cursor = tripTimeMode ? "crosshair" : (designMode ? "crosshair" : "");
+    document.getElementById("trip-hint").textContent = tripTimeMode
+      ? (tripTimePoints.length === 0 ? "Click the map for a start point (A)." : "Click again for an end point (B).")
+      : "";
+  });
+
+  document.getElementById("trip-clear").addEventListener("click", () => {
+    tripTimePoints = [];
+    updateTripTimeVisualization();
+  });
+}
+
+function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicGeojson, todGeojson) {
   routeGeojson = geojson;
   leafletMap = L.map("map", { scrollWheelZoom: false, preferCanvas: true }).setView([39.0997, -94.5786], 11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -884,6 +1249,7 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicG
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(leafletMap);
   leafletMap.on("click", onMapClickForDesign);
+  leafletMap.on("click", onMapClickForTripTime);
 
   if (!geojson || !geojson.features || geojson.features.length === 0) {
     L.control.attribution({ prefix: false }).addTo(leafletMap);
@@ -902,6 +1268,7 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicG
   buildDensityLayer(stopsGeojson || emptyFC());
   buildStudiesLayer(studiesGeojson || emptyFC());
   buildHistoricLayer(historicGeojson || emptyFC());
+  buildTodLayer(todGeojson || emptyFC());
 
   document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
     buildRouteLayer(routeGeojson, e.target.checked);
@@ -922,7 +1289,7 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicG
 
   // Only one extra overlay at a time (hubs / walkshed / density) — stacking
   // all of them plus the route lines is exactly what made the map busy.
-  const overlayLayers = { hubs: hubLayer, walkshed: walkshedLayer, density: densityLayer };
+  const overlayLayers = { hubs: hubLayer, walkshed: walkshedLayer, density: densityLayer, tod: todLayer };
   const overlaySelect = document.getElementById("overlay-select");
   overlaySelect.addEventListener("change", (e) => {
     for (const layer of Object.values(overlayLayers)) leafletMap.removeLayer(layer);
@@ -1300,6 +1667,19 @@ function renderHistoricTable(historicGeojson) {
   }).join("");
 }
 
+function renderTodStats(todGeojson) {
+  const el = document.getElementById("tod-note");
+  if (!todGeojson || !todGeojson.meta) { el.textContent = ""; return; }
+  const m = todGeojson.meta;
+  el.innerHTML = `<strong>TOD opportunity zones</strong> (select the overlay above): ${fmtNum(m.opportunity_parcel_count)}
+    parcels (${fmtNum(m.opportunity_acres)} acres) are zoned single-family-only
+    (${m.exclusionary_codes.join(", ")}) despite sitting within a quarter mile of a frequent stop — out of
+    ${fmtNum(m.total_exclusionary_acres_citywide)} exclusionary-zoned acres citywide. A small, specific
+    finding, not a sweeping one: most of KC's low-density zoning simply isn't near the frequent network at
+    all, which is its own kind of answer. Zoning classification, not current land use — some of these
+    parcels may already be parks, churches, or schools rather than vacant/redevelopable land.`;
+}
+
 function renderStudyCards(studiesGeojson) {
   if (!studiesGeojson || !studiesGeojson.features) return;
   const areas = studiesGeojson.features.filter(f =>
@@ -1465,6 +1845,7 @@ async function init() {
     const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
     const studiesGeojson = await loadJSON("data/streetcar_studies.geojson").catch(() => null);
     const historicGeojson = await loadJSON("data/historic_streetcar_1948.geojson").catch(() => null);
+    const todGeojson = await loadJSON("data/tod_opportunity.geojson").catch(() => null);
     const needAnalysis = await loadJSON("data/transit_need.json").catch(() => null);
 
     routesData = bundles.flatMap(b => b.routes);
@@ -1484,9 +1865,12 @@ async function init() {
     renderStats(routesData, agencyMetas);
     renderStaleBanner(agencyMetas);
     renderLegend();
-    renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson, historicGeojson);
+    renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson, historicGeojson, todGeojson);
+    renderTodStats(todGeojson);
     initRouteFilter();
     initDesignTool(studiesGeojson, mergedStops);
+    initHistoricSlider();
+    initTripTimeTool();
     renderStudyCards(studiesGeojson);
     renderHistoricTable(historicGeojson);
     renderNeedAnalysis(needAnalysis);

@@ -474,6 +474,111 @@ whether the waypoints themselves are trustworthy.
 
 ---
 
+## How would this actually get paid for (`funding-section`)
+
+Pure content, no new data pipeline. Real, sourced facts about how the two
+*built* extensions were funded: **Section 5309 "New Starts"** (federal,
+~49.5% of Main Street's $351.71M — competitive, not a guarantee, and a
+project needs ridership projections + environmental review + engineering
+work done just to apply) and the **Main Street Rail TDD** (local — a
+voter-approved special taxing district ⅓ mile either side of the route,
+property tax surcharge + 1% sales tax, which only pencils out because that
+corridor is "the most densely developed and highly valued property in the
+city"). Deliberately not a funding *plan* for the 3 proposed corridors —
+none has a confirmed funding source. The one real, sourced detail that ties
+this back to the need-priority section: KC's own East-West Transit Study
+says a TDD there likely wouldn't raise enough revenue (less commercially
+developed corridor), and that's also the corridor ranking below the
+citywide priority rate — flagged as a plausible shared cause, explicitly
+**not** claimed as proven causation.
+
+---
+
+## TOD opportunity zones (`docs/data/tod_opportunity.geojson`)
+
+A parcel counts as a TOD opportunity zone if it's zoned **single-family-only**
+under KC's own zoning code *and* sits within ¼ mile of a frequent (≤15 min)
+stop — real parcel geometry from Open Data KC (`data.kcmo.org`, dataset
+`mreg-j9sj`, 2,619 zoning polygons citywide, fetched once via
+`.geojson?$limit=3000` — zoning changes rarely enough this isn't a daily
+pipeline step). "Single-family-only" = KC's own `R-80`/`R-20`/`R-10`/`R-7.5`/
+`R-6`/`AG-R` codes — per kcmo.gov's own zoning code, the number suffix is
+roughly the minimum lot size in thousands of sqft, so a *bigger* number means
+a *bigger* required lot and lower allowed density; `R-5` and smaller permit
+duplexes/multifamily and aren't flagged. Combined classifications like
+`R-2.5/ICO` are matched on the base code before the `/`.
+
+**The honest result: only 7 parcels (320 acres) qualify**, out of 445
+exclusionary-zoned parcels (123,177 acres) citywide — sanity-checked by
+reverse-geocoding a few flagged parcels (real KC neighborhoods: Munsell
+Acres, Blue Hills, Independence Plaza, not an error) and by comparing
+against a looser bounding-box count before trusting the number. Framed in
+the UI as a small, specific finding, not a sweeping one — most of KC's
+low-density zoning simply isn't near the frequent network at all, which is
+its own kind of answer. The section copy also flags that this is zoning
+*classification*, not current land use — a flagged parcel could already be
+a park, church, or school rather than redevelopable land; a real TOD
+analysis would need parcel-level land-use data this dataset doesn't have.
+Uses aqua (`#1baf7a`) on the map — the one remaining unused categorical
+slot (blue=routes, violet=studies, magenta=user design, sepia=historic).
+
+---
+
+## 1948-vs-today comparison slider
+
+A draggable divider over the map, not another checkbox — `enterSliderMode()`/
+`exitSliderMode()` in `docs/index.html`. Leaflet has no built-in way to split
+a single vector layer's rendering by an arbitrary line, and the map's
+`preferCanvas:true` setting means most layers already share one canvas
+element, which can't be CSS-clipped per-layer. Worked around it with two
+**dedicated Leaflet panes** (`sliderTodayPane`/`sliderHistoricPane`), each
+with its own `L.canvas()` renderer — separate DOM elements, so each can get
+its own `clip-path: inset(...)` driven by the divider's drag position.
+Entering slider mode clears every other map layer (route lines, studies,
+historic, whichever overlay was selected) so the two comparison layers don't
+compete with a 5th thing on screen; exiting rebuilds them by re-reading the
+current state of the normal controls (checkboxes, overlay select) rather
+than trying to remember what was on before. The "today" side is drawn as a
+single flat color, not the usual frequency-tier ramp — this comparison is
+about *where* lines exist, not how frequent they are, and reusing the
+multi-color ramp here would fight the slider's own left/right visual split.
+
+---
+
+## Trip time: transit vs. driving
+
+**`avg_speed_mph`** (`kc_transit_update.py`) is a new per-route field:
+median one-way trip duration (first-to-last stop, dominant direction only,
+same restriction as `headway_minutes`) converted to hours, divided into
+`route_length_miles`. Median, not mean, for the same outlier-resistance
+reason `headway_minutes` already uses it. Covered by
+`test_build_dataset_computes_expected_metrics`, which checks the fixture's
+known 5-minute stop-to-stop trip time against the computed speed.
+
+**The tool itself is deliberately single-route-only.** Modeling transfers
+well needs a real trip-planning graph search with transfer penalties —
+out of scope for what's meant to be a napkin-math comparison, not a trip
+planner. `findBestDirectTransitOption()` walks every route's geometry,
+finds the nearest point on each to both the clicked origin and destination
+(`nearestPointOnLine()`, tracking cumulative arc-length so the "distance
+along the route between two points" is a simple subtraction), keeps only
+routes where *both* points are within a half-mile, and estimates
+`walk-to + wait (half the headway) + ride (arc distance / avg_speed_mph) +
+walk-from`. When nothing qualifies, it says so explicitly rather than
+guessing at a transfer. Driving time is OSRM's own `duration` field from the
+same free public router already used elsewhere (`overview=false` here —
+this call only needs the total duration, not the geometry, so skipping
+geometry keeps the response small). Mutually exclusive with the design
+tool via each toggle's click handler calling the other's — both hijack map
+clicks, so only one can be active at a time.
+
+Verified end-to-end against real data before shipping: fed the tool a
+route's own first/last shape points as origin/destination (guaranteed to
+land exactly on that route), and confirmed the output's ride time matched
+`route_length_miles / avg_speed_mph` by hand.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
@@ -482,8 +587,10 @@ bugs above as explicit regression tests, `compute_trending()`'s up/down/added/
 discontinued/reconciliation logic, the stops/hubs layers (frequent-flag
 correctness, the 3-route hub threshold), `simplify_polyline()` (collapses
 collinear points, keeps real corners, leaves short lines untouched),
-`AGENCIES` config sanity, and an end-to-end `build_dataset()` pass against
-small synthetic GTFS zips built in-memory. The frontend's point-in-polygon logic isn't covered here (it's
+`avg_speed_mph` (checked against the fixture's known stop-to-stop trip
+time), `AGENCIES` config sanity, and an end-to-end `build_dataset()` pass
+against small synthetic GTFS zips built in-memory. The frontend's
+point-in-polygon logic isn't covered here (it's
 pure JS with no Python equivalent) — it was validated ad hoc against the real
 `stops.geojson`/`kcmo_council_districts.geojson` output via Node before
 shipping, not via an automated test.
