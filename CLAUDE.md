@@ -270,11 +270,13 @@ treatment as `baseline_2020.json` and `kcmo_council_districts.geojson`:
   reversals. General lesson: a waypoint being real and well-sourced doesn't
   guarantee it's *drivable* — sanity-check the snapped result (point count,
   total length, whether the path backtracks on itself) before trusting it,
-  same as checking any other geocode. `historic_streetcar_1948.geojson`'s
-  route 58 also came back with a much longer snap (1.22mi → 4.17mi) with a
-  visible detour but zero backtracking — kept as-is since it's a real
-  drivable path, just circuitous, and that route was already labeled
-  "medium" confidence, not "high."
+  same as checking any other geocode. `historic_streetcar_1952.geojson`'s
+  route 7 (Armourdale–Troost Ave., which crosses the Kansas/Missouri state
+  line) also came back with a much longer snap (5.77mi → 8.46mi) since a
+  real driving path has to go via an actual bridge instead of a straight
+  line across the river — kept as-is since it came back with zero direction
+  reversals, the same "is it a real path or a fake mess" check used
+  throughout this section.
 - Both files were snapped with a **one-time Python script** (not part of the
   daily pipeline — these are static reference data, same as everywhere else
   in this section) that calls the same public OSRM endpoint the frontend
@@ -440,59 +442,90 @@ via a highway segment a real streetcar alignment never would.
 
 ---
 
-## Historic streetcar network (`docs/data/historic_streetcar_1948.geojson`)
+## Historic streetcar network (`docs/data/historic_streetcar_1952.geojson`)
 
-10 streetcar lines digitized from a user-provided scan of an **October 1948
+16 streetcar lines digitized from a user-provided scan of an **April 1952
 Kansas City Public Service Co. system map** — the actual original KC
 streetcar network, well before it was dismantled. Not GTFS, not a study:
 a one-time, by-hand digitization, same treatment as `baseline_2020.json`
 and `streetcar_studies.geojson`.
 
+**Replaces an earlier October 1948 digitization** (`historic_streetcar_1948.geojson`,
+10 routes, numbered 50s–60s — deleted, not kept alongside this one). The
+1948 map's route names were the only routing information it gave beyond
+downtown, so most of its routes were "medium" confidence at best. The 1952
+map uses a completely different numbering scheme (Street Car Lines 1–17)
+and — critically — has its own "STREET CAR LINES" panel giving explicit
+street-by-street routing (a "VIA ..." street list) for every numbered line,
+which is what actually made a higher-confidence, 16-line replacement
+possible rather than just a rescan of the same 10 routes.
+
+**Downtown intersections were pinned via the Overpass API** (`overpass-api.de`,
+free, no key) rather than Nominatim geocoding — the same technique the
+East-West corridor's Main St/Linwood Blvd waypoint above uses: pull the full
+OSM way geometry for each named street and find the literal shared node (or,
+where streets don't actually cross today, the closest-approach point,
+flagged with the gap distance). This is categorically more reliable than
+free-text geocoding for a street-by-street routing list like this map
+provides — most of the ~19 downtown intersections needed came back as exact
+shared nodes. Named places beyond downtown with no cross-street given
+(Armourdale, Muncie, Fairmount) were still geocoded via Nominatim, same as
+before.
+
+**A real inconsistency found in the source map itself, not just this
+dashboard's reading of it**: the map's own quick-reference index (top
+right) and its detailed "STREET CAR LINES" routing panel (center) disagree
+with each other for routes 9 and 10 — the index calls them "Broadway–64th
+St." and "Broadway–65th St.–Woodland Ave." respectively, but the detail
+panel's own via-street text for those same two numbers describes "55th St.
+& Woodland Ave." and "North Troost Ave.–64th St." instead (i.e., the
+endpoints the index assigns to 9 and 10 line up with what the detail panel
+calls 10 and 9). Caught by cross-checking the two panels against each other
+after transcribing them independently twice and getting the same mismatch
+both times — not a transcription slip on this dashboard's part. Resolved by
+using the detail panel (the more specific, operationally meaningful source)
+as authoritative for the actual routing, both routes marked `low`
+confidence, and the discrepancy stated plainly in each route's `note` field
+rather than silently picking one panel's numbering as "correct."
+
+**Route 17 ("N. Kansas City Line") was dropped entirely** — the map gives
+it no via-street detail at all, and no name distinct from route 16 ("North
+Kansas City Line"). Building a second geometry for it would mean fabricating
+a route with zero actual basis in the source; same "don't guess, say so"
+standard already applied elsewhere in this project (e.g. not inventing a
+feed for Unified Government Transit or IndeBus).
+
 **Confidence is explicit and varies per route**, stored as
 `properties.confidence` (`high`/`medium`/`low`) and reflected in the map's
 dash pattern (`HISTORIC_CONFIDENCE_DASH`):
-- **High** (route 56, Country Club): the map's downtown detail panel gives
-  an exact street ("ON MAIN ST."), and the route's plausible full extent
-  (downtown to Country Club Plaza) is well-supported by the route name
-  itself. Notably runs almost the same corridor as today's Main Street
-  Extension — a real, unplanned echo worth surfacing, not a coincidence
-  the dashboard invented.
-- **Medium** (most routes): downtown segment read directly off the map;
-  extent beyond downtown inferred by geocoding the streets implied by the
-  route's own name (e.g. "Troost–Independence" → Troost Ave + Independence
-  Ave), not traced pixel-by-pixel off the scan.
-- **Low** (routes 59, 67): the source map's resolution genuinely wasn't
-  legible enough to be confident. Route 59 ("Parallel–Jackson") only
-  yielded a confident geocode for "Parallel" (Parallel Parkway, KCK) — the
-  "Jackson" segment isn't represented in the line at all, noted in its
-  `note` field. Route 67 ("16th St.–34th St.") is a straight line between
-  two named cross streets with no attempt to trace an actual path — the
-  roughest guess in the file, flagged as such in its own popup.
-
-**A geocoding gotcha hit while building this**: a bare "Minnesota Avenue,
-Kansas City, KS" query (no house number or cross street) returned a point
-~5 miles further out than a plausible 1948 streetcar terminus — Nominatim
-picked some arbitrary point along the full length of the street. Same
-failure mode as the North KC ring-ordering bug's root cause one section up
-(an ungrounded geocode silently returning something technically on the
-right street but not where anything actually was) — caught by sanity-
-checking the distance from downtown before trusting it, then fixed by
-re-querying with a house number (`"700 Minnesota Avenue..."`) to land
-somewhere actually central.
+- **High** (route 8, The Paseo–55th St. & Woodland Ave.): via-streets and
+  terminus agree between the map's index and detail panel, and every
+  intersection needed came back as an exact OSM node.
+- **Medium** (most routes): via-streets are clear from the detail panel,
+  but either the far terminus is a named place without a specific
+  cross-street (Muncie, Fairmount, Armourdale), or a couple of the via
+  streets listed don't literally cross on the modern street grid (State
+  Line Rd. and Independence Ave., for route 14) and were reconciled as
+  separate segments the route touches rather than a literal turn-by-turn
+  sequence.
+- **Low** (routes 9, 10, 15): 9 and 10 for the index/detail-panel mismatch
+  described above; 15 because its named terminus ("So. Zone Point") was a
+  historic fare-zone boundary term, not a place that exists on any modern
+  map — its location couldn't be identified, so the line shown stops short
+  of the route's actual endpoint.
 
 Map styling: sepia/brown (`#8b5a2b`), never confused with the frequency-tier
 blue, the "under study" violet, or the user-design magenta. Gated behind its
-own "Show 1948 streetcar network" toggle, default off — same reasoning as
+own "Show 1952 streetcar network" toggle, default off — same reasoning as
 every other opt-in overlay on this map.
 
-**All 10 routes were re-snapped to real streets via OSRM** (same one-time
+**All 16 routes were snapped to real streets via OSRM** (same one-time
 script and endpoint used for the study corridors above), replacing the
-original straight-segment-between-geocoded-points lines — the whole point
-being that dashed straight lines between a handful of waypoints looked
-obviously synthetic next to the real route shapes. Confidence labels
-(`high`/`medium`/`low`) didn't change from the original digitization pass;
-snapping only affects how the *shape* between waypoints is drawn, not
-whether the waypoints themselves are trustworthy.
+original straight-segment-between-waypoints lines — the whole point being
+that dashed straight lines between a handful of waypoints looked obviously
+synthetic next to the real route shapes. Sanity-checked the same way as the
+North KC bridge fix (point count, length change, zero direction reversals)
+before trusting the result — all 16 came back clean, no zigzagging.
 
 ---
 
@@ -546,7 +579,7 @@ slot (blue=routes, violet=studies, magenta=user design, sepia=historic).
 
 ---
 
-## 1948-vs-today comparison slider
+## 1952-vs-today comparison slider
 
 A draggable divider over the map, not another checkbox — `enterSliderMode()`/
 `exitSliderMode()` in `docs/index.html`. Leaflet has no built-in way to split

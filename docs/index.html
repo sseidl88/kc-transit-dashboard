@@ -58,12 +58,12 @@
         </select>
       </label>
       <label><input type="checkbox" id="studies-toggle"> Show proposed extensions (under study)</label>
-      <label><input type="checkbox" id="historic-toggle"> Show 1948 streetcar network</label>
-      <button class="theme-toggle" id="slider-toggle" type="button">Compare 1948 ↔ Today</button>
+      <label><input type="checkbox" id="historic-toggle"> Show 1952 streetcar network</label>
+      <button class="theme-toggle" id="slider-toggle" type="button">Compare 1952 ↔ Today</button>
     </div>
     <div id="map"></div>
     <p class="section-note" id="slider-hint" style="display:none; margin-top:0.4rem">
-      Drag the vertical line — 1948's network on the left, today's on the right. Both shown as plain lines
+      Drag the vertical line — 1952's network on the left, today's on the right. Both shown as plain lines
       here (no frequency coloring) so the comparison itself stays the focus.
     </p>
     <div class="legend-row" id="legend-row"></div>
@@ -119,14 +119,15 @@
   </section>
 
   <section id="historic-section">
-    <h2>KC's original streetcar network (1948)</h2>
+    <h2>KC's original streetcar network (1952)</h2>
     <p class="section-note">
-      Digitized from an October 1948 Kansas City Public Service Co. system map — 10 streetcar lines, back
+      Digitized from an April 1952 Kansas City Public Service Co. system map — 16 streetcar lines, back
       when the network reached far beyond what's running today. Not GTFS, not a study: an illustrative
-      reconstruction built by reading the map's own downtown boarding directions (high confidence) and
-      tracing each route's name onto real streets beyond downtown (lower confidence — noted per route below
-      and in each line's map popup). Toggle "Show 1948 streetcar network" above to see it against today's
-      map. Route 56 (Country Club) ran almost the exact corridor of today's Main Street Extension.
+      reconstruction built from the map's own street-by-street routing panel, with downtown intersections
+      pinned to exact real-street crossings rather than approximated (confidence noted per route below and
+      in each line's map popup — a 17th line the map lists gave no usable routing detail and isn't shown).
+      Toggle "Show 1952 streetcar network" above to see it against today's map. Route 1 (Downtown–South
+      Kansas City) followed nearly the same Main/Oak Street corridor that today's Main Street Extension uses.
     </p>
     <div class="table-card">
       <table class="routes">
@@ -622,7 +623,7 @@ function buildTodLayer(todGeojson) {
   });
 }
 
-// --- 1948-vs-today comparison slider. Two dedicated Leaflet panes (each with
+// --- 1952-vs-today comparison slider. Two dedicated Leaflet panes (each with
 // its own canvas renderer) drawn on top of the normal map, clipped by a
 // draggable divider via CSS clip-path -- Leaflet has no built-in support for
 // splitting a single vector layer's rendering, and clipping the *shared*
@@ -707,7 +708,7 @@ function enterSliderMode() {
 
   const leftLabel = document.createElement("div");
   leftLabel.className = "slider-label";
-  leftLabel.textContent = "1948";
+  leftLabel.textContent = "1952";
   leftLabel.style.left = "10px";
   const rightLabel = document.createElement("div");
   rightLabel.className = "slider-label";
@@ -800,7 +801,7 @@ function buildStudiesLayer(studiesGeojson) {
 }
 
 // KC's original streetcar network, digitized from a user-provided scan of an
-// October 1948 Kansas City Public Service Co. system map — not GTFS, not a
+// April 1952 Kansas City Public Service Co. system map — not GTFS, not a
 // study, just history. Sepia/brown so it reads as "the past" and is never
 // confused with the violet "under study" lines or real current service.
 let historicLayer;
@@ -1869,7 +1870,7 @@ async function init() {
     const baseline = await loadJSON("data/baseline_2020.json").catch(() => null);
     const districtsGeojson = await loadJSON("data/kcmo_council_districts.geojson").catch(() => null);
     const studiesGeojson = await loadJSON("data/streetcar_studies.geojson").catch(() => null);
-    const historicGeojson = await loadJSON("data/historic_streetcar_1948.geojson").catch(() => null);
+    const historicGeojson = await loadJSON("data/historic_streetcar_1952.geojson").catch(() => null);
     const todGeojson = await loadJSON("data/tod_opportunity.geojson").catch(() => null);
     const needAnalysis = await loadJSON("data/transit_need.json").catch(() => null);
 

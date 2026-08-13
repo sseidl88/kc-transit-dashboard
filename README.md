@@ -51,12 +51,13 @@ pulled daily by GitHub Actions:
   names your route follows, a warning if it crosses the Missouri River (cost is
   almost certainly higher there), how much of it is new coverage vs. already served
   by the existing frequent network, and a shareable link
-- **KC's original 1948 streetcar network** — 10 lines digitized from a scan of an
-  October 1948 Kansas City Public Service Co. system map, toggleable on the map in
-  sepia. Confidence is marked per route (high/medium/low) depending on how legible
-  that part of the map actually was — see [CLAUDE.md](CLAUDE.md) for specifics.
-  One unplanned finding: the old Country Club line ran almost the exact corridor of
-  today's Main Street Extension. A "Compare 1948 ↔ Today" button turns this into a
+- **KC's original 1952 streetcar network** — 16 lines digitized from a scan of an
+  April 1952 Kansas City Public Service Co. system map, toggleable on the map in
+  sepia. Confidence is marked per route (high/medium/low) depending on how well its
+  routing could be pinned down — see [CLAUDE.md](CLAUDE.md) for specifics, including
+  a real inconsistency found in the map's own two route-listing panels. One unplanned
+  finding: the old Downtown–South Kansas City line ran almost the exact corridor of
+  today's Main Street Extension. A "Compare 1952 ↔ Today" button turns this into a
   draggable before/after slider right on the map instead of a plain on/off toggle
 - **Where should KC invest next?** — with fares back as of June 2026, a plain,
   explainable "priority zone" rule (above-median car-free households + far from the
