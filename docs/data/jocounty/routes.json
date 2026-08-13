@@ -7,7 +7,7 @@
     "total_weekday_trips": 224,
     "transfer_hub_count": 10,
     "feed_version": "UTC: 25-Jun-2026 16:21",
-    "generated_at": "2026-08-13T11:53:34.345038+00:00",
+    "generated_at": "2026-08-13T17:24:37.175354+00:00",
     "feed_last_modified": "Fri, 26 Jun 2026 09:38:15 GMT",
     "agency": "RideKC Johnson County Transit"
   },
@@ -26,6 +26,7 @@
       "span_end": "10:54 PM",
       "stop_count": 78,
       "route_length_miles": 18.5,
+      "avg_speed_mph": 16.8,
       "has_geometry": true
     },
     {
@@ -42,6 +43,7 @@
       "span_end": "11:20 PM",
       "stop_count": 3,
       "route_length_miles": 42.8,
+      "avg_speed_mph": 42.8,
       "has_geometry": true
     },
     {
@@ -58,6 +60,7 @@
       "span_end": "9:45 PM",
       "stop_count": 53,
       "route_length_miles": 17.8,
+      "avg_speed_mph": 21.4,
       "has_geometry": true
     },
     {
@@ -74,6 +77,7 @@
       "span_end": "9:14 PM",
       "stop_count": 165,
       "route_length_miles": 24.1,
+      "avg_speed_mph": 17.6,
       "has_geometry": true
     },
     {
@@ -90,6 +94,7 @@
       "span_end": "11:31 PM",
       "stop_count": 123,
       "route_length_miles": 15.3,
+      "avg_speed_mph": 15.3,
       "has_geometry": true
     },
     {
@@ -106,6 +111,7 @@
       "span_end": "8:16 PM",
       "stop_count": 60,
       "route_length_miles": 10.6,
+      "avg_speed_mph": 19.3,
       "has_geometry": true
     },
     {
@@ -122,6 +128,7 @@
       "span_end": "7:14 PM",
       "stop_count": 122,
       "route_length_miles": 18.2,
+      "avg_speed_mph": 16.7,
       "has_geometry": true
     },
     {
@@ -138,6 +145,7 @@
       "span_end": "6:50 PM",
       "stop_count": 97,
       "route_length_miles": 15.8,
+      "avg_speed_mph": 16.9,
       "has_geometry": true
     },
     {
@@ -154,6 +162,7 @@
       "span_end": "7:01 PM",
       "stop_count": 17,
       "route_length_miles": 22.7,
+      "avg_speed_mph": 29.0,
       "has_geometry": true
     }
   ]

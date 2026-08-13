@@ -7,7 +7,7 @@
     "total_weekday_trips": 1819,
     "transfer_hub_count": 46,
     "feed_version": "July 2026_20260723",
-    "generated_at": "2026-08-13T11:53:33.159889+00:00",
+    "generated_at": "2026-08-13T17:24:35.662372+00:00",
     "feed_last_modified": "Fri, 24 Jul 2026 10:06:34 GMT",
     "agency": "KCATA"
   },
@@ -26,6 +26,7 @@
       "span_end": "12:28 AM (+1)",
       "stop_count": 34,
       "route_length_miles": 6.1,
+      "avg_speed_mph": 11.4,
       "has_geometry": true
     },
     {
@@ -42,6 +43,7 @@
       "span_end": "1:04 AM (+1)",
       "stop_count": 56,
       "route_length_miles": 9.6,
+      "avg_speed_mph": 14.4,
       "has_geometry": true
     },
     {
@@ -58,6 +60,7 @@
       "span_end": "12:28 AM (+1)",
       "stop_count": 112,
       "route_length_miles": 10.8,
+      "avg_speed_mph": 16.2,
       "has_geometry": true
     },
     {
@@ -74,6 +77,7 @@
       "span_end": "12:43 AM (+1)",
       "stop_count": 99,
       "route_length_miles": 8.4,
+      "avg_speed_mph": 13.6,
       "has_geometry": true
     },
     {
@@ -90,6 +94,7 @@
       "span_end": "11:25 PM",
       "stop_count": 101,
       "route_length_miles": 5.2,
+      "avg_speed_mph": 12.5,
       "has_geometry": true
     },
     {
@@ -106,6 +111,7 @@
       "span_end": "11:18 PM",
       "stop_count": 61,
       "route_length_miles": 8.3,
+      "avg_speed_mph": 19.9,
       "has_geometry": true
     },
     {
@@ -122,6 +128,7 @@
       "span_end": "12:18 AM (+1)",
       "stop_count": 63,
       "route_length_miles": 5.4,
+      "avg_speed_mph": 12.0,
       "has_geometry": true
     },
     {
@@ -138,6 +145,7 @@
       "span_end": "12:03 AM (+1)",
       "stop_count": 152,
       "route_length_miles": 17.5,
+      "avg_speed_mph": 18.4,
       "has_geometry": true
     },
     {
@@ -154,6 +162,7 @@
       "span_end": "11:35 PM",
       "stop_count": 111,
       "route_length_miles": 16.6,
+      "avg_speed_mph": 16.6,
       "has_geometry": true
     },
     {
@@ -170,6 +179,7 @@
       "span_end": "11:35 PM",
       "stop_count": 122,
       "route_length_miles": 11.8,
+      "avg_speed_mph": 12.9,
       "has_geometry": true
     },
     {
@@ -186,6 +196,7 @@
       "span_end": "11:39 PM",
       "stop_count": 116,
       "route_length_miles": 10.3,
+      "avg_speed_mph": 13.7,
       "has_geometry": true
     },
     {
@@ -202,6 +213,7 @@
       "span_end": "11:07 PM",
       "stop_count": 66,
       "route_length_miles": 6.7,
+      "avg_speed_mph": 16.8,
       "has_geometry": true
     },
     {
@@ -218,6 +230,7 @@
       "span_end": "6:37 PM",
       "stop_count": 78,
       "route_length_miles": 9.3,
+      "avg_speed_mph": 15.1,
       "has_geometry": true
     },
     {
@@ -234,6 +247,7 @@
       "span_end": "12:36 AM (+1)",
       "stop_count": 99,
       "route_length_miles": 14.4,
+      "avg_speed_mph": 19.6,
       "has_geometry": true
     },
     {
@@ -250,6 +264,7 @@
       "span_end": "11:13 PM",
       "stop_count": 67,
       "route_length_miles": 6.2,
+      "avg_speed_mph": 13.3,
       "has_geometry": true
     },
     {
@@ -266,6 +281,7 @@
       "span_end": "12:04 AM (+1)",
       "stop_count": 133,
       "route_length_miles": 13.8,
+      "avg_speed_mph": 15.3,
       "has_geometry": true
     },
     {
@@ -282,6 +298,7 @@
       "span_end": "7:25 PM",
       "stop_count": 69,
       "route_length_miles": 6.8,
+      "avg_speed_mph": 14.6,
       "has_geometry": true
     },
     {
@@ -298,6 +315,7 @@
       "span_end": "8:32 PM",
       "stop_count": 53,
       "route_length_miles": 5.4,
+      "avg_speed_mph": 16.2,
       "has_geometry": true
     },
     {
@@ -314,6 +332,7 @@
       "span_end": "7:19 PM",
       "stop_count": 61,
       "route_length_miles": 7.0,
+      "avg_speed_mph": 12.7,
       "has_geometry": true
     },
     {
@@ -330,6 +349,7 @@
       "span_end": "7:52 PM",
       "stop_count": 115,
       "route_length_miles": 11.3,
+      "avg_speed_mph": 18.3,
       "has_geometry": true
     },
     {
@@ -346,6 +366,7 @@
       "span_end": "11:09 PM",
       "stop_count": 84,
       "route_length_miles": 22.9,
+      "avg_speed_mph": 25.4,
       "has_geometry": true
     },
     {
@@ -362,6 +383,7 @@
       "span_end": "9:24 PM",
       "stop_count": 85,
       "route_length_miles": 16.3,
+      "avg_speed_mph": 16.6,
       "has_geometry": true
     },
     {
@@ -378,6 +400,7 @@
       "span_end": "6:22 PM",
       "stop_count": 75,
       "route_length_miles": 8.5,
+      "avg_speed_mph": 15.5,
       "has_geometry": true
     },
     {
@@ -394,6 +417,7 @@
       "span_end": "8:54 PM",
       "stop_count": 57,
       "route_length_miles": 17.8,
+      "avg_speed_mph": 20.9,
       "has_geometry": true
     },
     {
@@ -410,6 +434,7 @@
       "span_end": "8:45 PM",
       "stop_count": 176,
       "route_length_miles": 19.9,
+      "avg_speed_mph": 25.4,
       "has_geometry": true
     },
     {
@@ -426,6 +451,7 @@
       "span_end": "7:46 PM",
       "stop_count": 109,
       "route_length_miles": 8.7,
+      "avg_speed_mph": 13.4,
       "has_geometry": true
     },
     {
@@ -442,6 +468,7 @@
       "span_end": "7:23 PM",
       "stop_count": 67,
       "route_length_miles": 6.5,
+      "avg_speed_mph": 18.6,
       "has_geometry": true
     },
     {
@@ -458,6 +485,7 @@
       "span_end": "7:17 PM",
       "stop_count": 137,
       "route_length_miles": 17.7,
+      "avg_speed_mph": 20.0,
       "has_geometry": true
     },
     {
@@ -474,6 +502,7 @@
       "span_end": "7:54 PM",
       "stop_count": 141,
       "route_length_miles": 14.6,
+      "avg_speed_mph": 16.2,
       "has_geometry": true
     },
     {
@@ -490,6 +519,7 @@
       "span_end": "6:20 PM",
       "stop_count": 27,
       "route_length_miles": 21.0,
+      "avg_speed_mph": 25.2,
       "has_geometry": true
     }
   ]
