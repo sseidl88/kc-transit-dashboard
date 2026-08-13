@@ -12,10 +12,10 @@ the people who need it most?
 Built from each agency's public GTFS static feed (routes, stops, shapes, schedules),
 pulled daily by GitHub Actions:
 
-- A map of every weekday route across both agencies, colored by scheduled frequency,
-  with toggles for a "frequent network only" filter, transfer hubs (stops served by
-  3+ routes), a frequent-network walkshed (¼-mile buffer around frequent stops), and
-  overall stop density
+- A map of every weekday route across both agencies, colored by scheduled frequency
+  (opens showing just the frequent network by default — full network is one click
+  away), with toggles for transfer hubs (stops served by 3+ routes), a frequent-network
+  walkshed (¼-mile buffer around frequent stops), and overall stop density
 - Frequent-network access by Kansas City, MO council district — a genuine coverage/
   equity view, not just a map
 - Trip frequency (headway), span of service, stop count, and route length per route
@@ -28,9 +28,11 @@ pulled daily by GitHub Actions:
   and an East-West corridor) — real, sourced study-area boundaries with Census
   population figures and a rough cost estimate (illustrative length × KC's own last
   two extension costs per mile — Riverfront ~$87M/mi, Main Street ~$100M/mi), plus an
-  illustrative route line through each study's own named streets. Clearly marked as
-  not-a-confirmed-alignment — see [CLAUDE.md](CLAUDE.md) for exactly what's real data
-  versus this dashboard's own approximation
+  illustrative route line through each study's own named streets, snapped to real
+  roads via OSRM (same router the design tool below uses) rather than drawn as
+  straight segments. Clearly marked as not-a-confirmed-alignment — see
+  [CLAUDE.md](CLAUDE.md) for exactly what's real data versus this dashboard's own
+  approximation
 - **Design your own extension** — click points on the map to sketch a route; it snaps
   to real streets via [OSRM](https://project-osrm.org/) (free, no key) and estimates
   length, cost, and population served live in the browser, using the same benchmarks

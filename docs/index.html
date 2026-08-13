@@ -448,7 +448,11 @@ function buildRouteLayer(geojson, frequentOnly) {
     style: (feature) => ({
       color: feature.properties.color || "#3987e5",
       weight: weightForHeadway(feature.properties.headway_minutes),
-      opacity: 0.85,
+      // Quieter at rest than before (was 0.85) — with up to ~39 routes drawn
+      // at once, full opacity on every line was a big part of what made the
+      // map busy. Hover still jumps to full strength, so the contrast on
+      // interaction is actually sharper than before, not weaker.
+      opacity: 0.6,
     }),
     onEachFeature: (feature, lyr) => {
       const p = feature.properties;
@@ -460,7 +464,7 @@ function buildRouteLayer(geojson, frequentOnly) {
          <span class="tier">${p.agency ? p.agency + " · " : ""}${p.route_type} · ${headway}</span>`
       );
       lyr.on("mouseover", () => lyr.setStyle({ weight: baseWeight + 3, opacity: 1 }));
-      lyr.on("mouseout", () => lyr.setStyle({ weight: baseWeight, opacity: 0.85 }));
+      lyr.on("mouseout", () => lyr.setStyle({ weight: baseWeight, opacity: 0.6 }));
     },
   }).addTo(leafletMap);
 }
@@ -886,7 +890,9 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicG
     return;
   }
 
-  const startFrequentOnly = new URLSearchParams(location.search).get("freq") === "1";
+  // Default ON: opening with all ~39 routes at once was the single biggest
+  // source of map clutter. "?freq=0" opts back into the full network.
+  const startFrequentOnly = new URLSearchParams(location.search).get("freq") !== "0";
   document.getElementById("frequent-only-toggle").checked = startFrequentOnly;
   buildRouteLayer(geojson, startFrequentOnly);
   leafletMap.fitBounds(routeLayer.getBounds(), { padding: [16, 16] });
@@ -899,7 +905,9 @@ function renderMap(geojson, hubsGeojson, stopsGeojson, studiesGeojson, historicG
 
   document.getElementById("frequent-only-toggle").addEventListener("change", (e) => {
     buildRouteLayer(routeGeojson, e.target.checked);
-    setUrlParam("freq", e.target.checked ? "1" : null);
+    // Checked is now the default, so only the *uncommon* choice (unchecked,
+    // "show everything") needs to show up in the URL.
+    setUrlParam("freq", e.target.checked ? null : "0");
   });
 
   document.getElementById("studies-toggle").addEventListener("change", (e) => {

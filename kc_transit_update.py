@@ -260,6 +260,48 @@ def haversine_miles(lat1, lon1, lat2, lon2):
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def _perpendicular_distance_miles(pt, start, end):
+    """Approximate perpendicular distance from pt to the line start-end, in
+    miles, using a local planar projection (fine at this scale — a route
+    shape spans a few miles, not enough for geodesic curvature to matter)."""
+    lat0, lon0 = pt
+    lat1, lon1 = start
+    lat2, lon2 = end
+    mean_lat = math.radians((lat1 + lat2) / 2)
+    miles_per_deg_lon = 69.0 * math.cos(mean_lat)
+    x0, y0 = lon0 * miles_per_deg_lon, lat0 * 69.0
+    x1, y1 = lon1 * miles_per_deg_lon, lat1 * 69.0
+    x2, y2 = lon2 * miles_per_deg_lon, lat2 * 69.0
+    if x1 == x2 and y1 == y2:
+        return math.hypot(x0 - x1, y0 - y1)
+    num = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+    den = math.hypot(y2 - y1, x2 - x1)
+    return num / den
+
+
+def simplify_polyline(latlon_points, epsilon_miles=0.02):
+    """Douglas-Peucker simplification on a list of (lat, lon) points.
+
+    GTFS shapes.txt typically has a point every 10-30 feet — far more detail
+    than a metro-wide map needs, and rendering all of it for ~39 routes at
+    once was a real contributor to the map feeling busy. epsilon=0.02mi
+    (~100ft) trims that down while keeping the route's visual shape intact.
+    """
+    if len(latlon_points) < 3:
+        return latlon_points
+    start, end = latlon_points[0], latlon_points[-1]
+    max_dist, max_idx = 0, 0
+    for i in range(1, len(latlon_points) - 1):
+        d = _perpendicular_distance_miles(latlon_points[i], start, end)
+        if d > max_dist:
+            max_dist, max_idx = d, i
+    if max_dist <= epsilon_miles:
+        return [start, end]
+    left = simplify_polyline(latlon_points[:max_idx + 1], epsilon_miles)
+    right = simplify_polyline(latlon_points[max_idx:], epsilon_miles)
+    return left[:-1] + right
+
+
 def frequency_tier(headway_minutes):
     if headway_minutes is None:
         return FREQUENCY_TIERS[-1][1], FREQUENCY_TIERS[-1][2]
@@ -417,6 +459,10 @@ def build_dataset(zf, today):
                 for i in range(len(points) - 1)
             )
             route_length_miles = round(length, 1)
+            # Simplify only the rendered geometry, never the length calc above
+            # (which stays at full precision) -- this is purely about cutting
+            # down how many points the map has to draw.
+            simplified = simplify_polyline([(lat, lon) for _, lat, lon in points])
             features.append({
                 "type": "Feature",
                 "properties": {
@@ -430,7 +476,7 @@ def build_dataset(zf, today):
                 },
                 "geometry": {
                     "type": "LineString",
-                    "coordinates": [[lon, lat] for _, lat, lon in points],
+                    "coordinates": [[lon, lat] for lat, lon in simplified],
                 },
             })
 

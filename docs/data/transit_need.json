@@ -16,8 +16,7 @@
       "no_vehicle_households": 315,
       "no_vehicle_share": 0.3477,
       "miles_to_frequent_network": 7.99,
-      "in_study_areas": [],
-      "area_label": "Northwest Thoreau Drive"
+      "in_study_areas": []
     },
     {
       "geoid": "290950079001",
@@ -28,8 +27,7 @@
       "no_vehicle_households": 231,
       "no_vehicle_share": 0.4583,
       "miles_to_frequent_network": 0.87,
-      "in_study_areas": [],
-      "area_label": "Swope Parkway-Elmwood"
+      "in_study_areas": []
     },
     {
       "geoid": "290950019002",
@@ -40,8 +38,7 @@
       "no_vehicle_households": 376,
       "no_vehicle_share": 0.6483,
       "miles_to_frequent_network": 1.61,
-      "in_study_areas": [],
-      "area_label": "East 10th Street"
+      "in_study_areas": []
     },
     {
       "geoid": "290950114081",
@@ -52,8 +49,7 @@
       "no_vehicle_households": 280,
       "no_vehicle_share": 0.4844,
       "miles_to_frequent_network": 4.88,
-      "in_study_areas": [],
-      "area_label": "Indian Avenue"
+      "in_study_areas": []
     },
     {
       "geoid": "290950010003",
@@ -64,8 +60,7 @@
       "no_vehicle_households": 145,
       "no_vehicle_share": 0.3756,
       "miles_to_frequent_network": 0.78,
-      "in_study_areas": [],
-      "area_label": "Pendleton Heights"
+      "in_study_areas": []
     },
     {
       "geoid": "290950153001",
@@ -76,8 +71,7 @@
       "no_vehicle_households": 179,
       "no_vehicle_share": 0.3255,
       "miles_to_frequent_network": 0.75,
-      "in_study_areas": [],
-      "area_label": "Downtown Kansas City"
+      "in_study_areas": []
     },
     {
       "geoid": "290950116023",
@@ -88,8 +82,7 @@
       "no_vehicle_households": 200,
       "no_vehicle_share": 0.5747,
       "miles_to_frequent_network": 3.3,
-      "in_study_areas": [],
-      "area_label": "College Terrace"
+      "in_study_areas": []
     },
     {
       "geoid": "202090411001",
@@ -100,8 +93,7 @@
       "no_vehicle_households": 156,
       "no_vehicle_share": 0.2949,
       "miles_to_frequent_network": 2.46,
-      "in_study_areas": [],
-      "area_label": "Northeast"
+      "in_study_areas": []
     },
     {
       "geoid": "202090439042",
@@ -112,8 +104,7 @@
       "no_vehicle_households": 143,
       "no_vehicle_share": 0.236,
       "miles_to_frequent_network": 6.93,
-      "in_study_areas": [],
-      "area_label": "Cornado"
+      "in_study_areas": []
     },
     {
       "geoid": "290950078022",
@@ -124,8 +115,7 @@
       "no_vehicle_households": 160,
       "no_vehicle_share": 0.3326,
       "miles_to_frequent_network": 1.34,
-      "in_study_areas": [],
-      "area_label": "Elmwood Avenue"
+      "in_study_areas": []
     },
     {
       "geoid": "290470203003",
@@ -136,8 +126,7 @@
       "no_vehicle_households": 216,
       "no_vehicle_share": 0.246,
       "miles_to_frequent_network": 5.22,
-      "in_study_areas": [],
-      "area_label": "North Flora Avenue"
+      "in_study_areas": []
     },
     {
       "geoid": "290950136133",
@@ -148,8 +137,7 @@
       "no_vehicle_households": 272,
       "no_vehicle_share": 0.3977,
       "miles_to_frequent_network": 9.11,
-      "in_study_areas": [],
-      "area_label": "Northwest Oldham Parkway"
+      "in_study_areas": []
     },
     {
       "geoid": "290950114052",
@@ -160,8 +148,7 @@
       "no_vehicle_households": 151,
       "no_vehicle_share": 0.1987,
       "miles_to_frequent_network": 6.09,
-      "in_study_areas": [],
-      "area_label": "Dover Drive"
+      "in_study_areas": []
     },
     {
       "geoid": "202090420011",
@@ -172,8 +159,7 @@
       "no_vehicle_households": 134,
       "no_vehicle_share": 0.4542,
       "miles_to_frequent_network": 2.51,
-      "in_study_areas": [],
-      "area_label": "Riverview"
+      "in_study_areas": []
     },
     {
       "geoid": "202090441041",
@@ -184,8 +170,7 @@
       "no_vehicle_households": 186,
       "no_vehicle_share": 0.262,
       "miles_to_frequent_network": 8.7,
-      "in_study_areas": [],
-      "area_label": "Victory Hills"
+      "in_study_areas": []
     },
     {
       "geoid": "290470214011",
@@ -196,8 +181,7 @@
       "no_vehicle_households": 117,
       "no_vehicle_share": 0.3372,
       "miles_to_frequent_network": 12.39,
-      "in_study_areas": [],
-      "area_label": "Mississippi Street"
+      "in_study_areas": []
     },
     {
       "geoid": "290470221006",
@@ -210,8 +194,7 @@
       "miles_to_frequent_network": 1.15,
       "in_study_areas": [
         "north_kc"
-      ],
-      "area_label": "Swift Street"
+      ]
     },
     {
       "geoid": "290950097001",
@@ -222,8 +205,7 @@
       "no_vehicle_households": 149,
       "no_vehicle_share": 0.3984,
       "miles_to_frequent_network": 1.79,
-      "in_study_areas": [],
-      "area_label": "Flora Avenue"
+      "in_study_areas": []
     },
     {
       "geoid": "290470202012",
@@ -234,8 +216,7 @@
       "no_vehicle_households": 164,
       "no_vehicle_share": 0.1934,
       "miles_to_frequent_network": 2.97,
-      "in_study_areas": [],
-      "area_label": "Northeast Davidson Road"
+      "in_study_areas": []
     },
     {
       "geoid": "290470211051",
@@ -246,8 +227,7 @@
       "no_vehicle_households": 230,
       "no_vehicle_share": 0.3217,
       "miles_to_frequent_network": 7.26,
-      "in_study_areas": [],
-      "area_label": "North Park Avenue"
+      "in_study_areas": []
     }
   ],
   "corridor_comparison": [

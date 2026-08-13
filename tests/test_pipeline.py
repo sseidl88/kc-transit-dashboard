@@ -52,6 +52,29 @@ def test_frequency_tier_buckets():
     assert kctu.frequency_tier(None)[0].startswith("Limited")
 
 
+def test_simplify_polyline_collapses_collinear_points():
+    # A dead-straight line: GTFS-style dense sampling should collapse to endpoints.
+    points = [(39.0, -94.5 + i * 0.001) for i in range(50)]
+    simplified = kctu.simplify_polyline(points)
+    assert simplified == [points[0], points[-1]]
+
+
+def test_simplify_polyline_keeps_real_corners():
+    # An L-shaped path (continuous, no gap at the bend) should keep the
+    # corner as its own point rather than simplifying straight through it.
+    points = [(39.0, -94.5 + i * 0.001) for i in range(25)]
+    points += [(39.0 + i * 0.001, -94.476) for i in range(25)]
+    simplified = kctu.simplify_polyline(points)
+    assert len(simplified) == 3
+    assert simplified[0] == points[0]
+    assert simplified[-1] == points[-1]
+
+
+def test_simplify_polyline_leaves_short_lines_alone():
+    points = [(39.0, -94.5), (39.01, -94.49)]
+    assert kctu.simplify_polyline(points) == points
+
+
 # ---------------------------------------------------------------------------
 # Calendar / representative-date logic
 # ---------------------------------------------------------------------------

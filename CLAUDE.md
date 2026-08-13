@@ -120,7 +120,17 @@ GTFS feed: `http://www.kc-metro.com/gtf/google_transit.zip` (KCATA's official fe
 - `span_start`/`span_end` — first/last scheduled time, formatted 12-hour, with a
   `(+1)` suffix for GTFS's after-midnight `25:xx:xx`-style times.
 - `stop_count` — distinct stops served on weekday trips.
-- `route_length_miles` — haversine sum along the route's most-common `shape_id`.
+- `route_length_miles` — haversine sum along the route's most-common `shape_id`,
+  computed from the **full-precision** shape points, before any simplification.
+- `docs/data/routes.geojson` line geometry is simplified (`simplify_polyline()`,
+  Douglas-Peucker, ~100ft/0.02mi tolerance, no shapely dependency — same
+  "no GIS library" pattern as the rest of the pipeline) before being written
+  out. GTFS shapes.txt typically samples a point every 10-30 feet, which is
+  far more detail than a metro-wide map needs and was a real contributor to
+  the map feeling busy with ~39 routes drawn at once — cuts a feed's ~44,500
+  raw shape points down to roughly 800 rendered points across all routes.
+  `route_length_miles` is computed *before* simplifying, so this is purely a
+  rendering optimization, not a change to any reported statistic.
 - `frequency_tier` / map line `color` — bucketed from `headway_minutes` using the
   dataviz skill's sequential blue ramp (ordinal steps 550/400/300/250 — see
   `docs/style.css` header comment and `FREQUENCY_TIERS` in the script). The map
@@ -224,11 +234,34 @@ treatment as `baseline_2020.json` and `kcmo_council_districts.geojson`:
   machine-readable (or even map-image) form as of this writing. Built by
   geocoding the streets each study's materials actually name (e.g. East-West's
   Nov 2023 update: "39th Street and Linwood Boulevard, between Rainbow
-  Boulevard and Van Brunt Boulevard") via Nominatim (free, no key) and
-  connecting the points. 18th & Vine has no published street-level detail at
-  all beyond "push the line east into the 18th and Vine corridor," so its line
-  is this dashboard's best plausible guess (18th St to Vine St) — flagged as
-  such in its card, more so than the other two.
+  Boulevard and Van Brunt Boulevard") via Nominatim (free, no key), then
+  **snapped to real streets via OSRM** (`scripts` in the note below) instead
+  of left as straight segments between the geocoded points — same router the
+  design tool uses, so the whole page is visually consistent. 18th & Vine has
+  no published street-level detail at all beyond "push the line east into the
+  18th and Vine corridor," so its line is this dashboard's best plausible
+  guess (18th St to Vine St) — flagged as such in its card, more so than the
+  other two.
+- **Snapping gotcha**: North KC's route originally used the ASB Bridge as its
+  river-crossing waypoint (it's the real study's own stated west boundary),
+  but that bridge is rail/pedestrian-only — not part of OSRM's drivable
+  network. Feeding it in as a waypoint made OSRM detour badly (zigzagging
+  north/south, 3.02mi → 7.29mi, a fake-looking mess, not "cleaner"). Fixed by
+  swapping in the Heart of America Bridge (a real drivable crossing a few
+  hundred feet away) — re-snapped cleanly to 4.99mi with zero direction
+  reversals. General lesson: a waypoint being real and well-sourced doesn't
+  guarantee it's *drivable* — sanity-check the snapped result (point count,
+  total length, whether the path backtracks on itself) before trusting it,
+  same as checking any other geocode. `historic_streetcar_1948.geojson`'s
+  route 58 also came back with a much longer snap (1.22mi → 4.17mi) with a
+  visible detour but zero backtracking — kept as-is since it's a real
+  drivable path, just circuitous, and that route was already labeled
+  "medium" confidence, not "high."
+- Both files were snapped with a **one-time Python script** (not part of the
+  daily pipeline — these are static reference data, same as everywhere else
+  in this section) that calls the same public OSRM endpoint the frontend
+  design tool uses, `overview=full` for maximum path detail since this runs
+  offline once rather than live in a user's browser.
 - **Population figures are real Census data, not a ridership forecast** —
   neither study has published one. `CENTLAT`/`CENTLON` block-group centroids
   from the Census Bureau's TIGERweb REST service (free, no key) for Jackson
@@ -430,6 +463,15 @@ blue, the "under study" violet, or the user-design magenta. Gated behind its
 own "Show 1948 streetcar network" toggle, default off — same reasoning as
 every other opt-in overlay on this map.
 
+**All 10 routes were re-snapped to real streets via OSRM** (same one-time
+script and endpoint used for the study corridors above), replacing the
+original straight-segment-between-geocoded-points lines — the whole point
+being that dashed straight lines between a handful of waypoints looked
+obviously synthetic next to the real route shapes. Confidence labels
+(`high`/`medium`/`low`) didn't change from the original digitization pass;
+snapping only affects how the *shape* between waypoints is drawn, not
+whether the waypoints themselves are trustworthy.
+
 ---
 
 ## Testing
@@ -438,9 +480,10 @@ every other opt-in overlay on this map.
 push/PR) covers the time/distance helpers, calendar exception handling, both
 bugs above as explicit regression tests, `compute_trending()`'s up/down/added/
 discontinued/reconciliation logic, the stops/hubs layers (frequent-flag
-correctness, the 3-route hub threshold), `AGENCIES` config sanity, and an
-end-to-end `build_dataset()` pass against small synthetic GTFS zips built
-in-memory. The frontend's point-in-polygon logic isn't covered here (it's
+correctness, the 3-route hub threshold), `simplify_polyline()` (collapses
+collinear points, keeps real corners, leaves short lines untouched),
+`AGENCIES` config sanity, and an end-to-end `build_dataset()` pass against
+small synthetic GTFS zips built in-memory. The frontend's point-in-polygon logic isn't covered here (it's
 pure JS with no Python equivalent) — it was validated ad hoc against the real
 `stops.geojson`/`kcmo_council_districts.geojson` output via Node before
 shipping, not via an automated test.
@@ -463,7 +506,13 @@ end-to-end runs outside the test suite.
   tier **and weighted by it** (`weightForHeadway()` — thicker line for a
   frequent route, thinner for an infrequent one), popup per route on click,
   hover to highlight (weight +3 over its base, not a fixed value, so the
-  hierarchy survives the hover state too). Controls:
+  hierarchy survives the hover state too). Base line opacity is 0.6 (was
+  0.85) — with up to ~39 routes drawn simultaneously, full-strength lines at
+  rest were a real source of busyness; hover still jumps to opacity 1, so
+  the contrast on interaction actually got sharper, not weaker. Route
+  geometry is also simplified server-side before it ever reaches the
+  frontend — see `simplify_polyline()` in `kc_transit_update.py` below.
+  Controls:
   - Route filter (`initRouteFilter()`) — a dropdown checklist grouped by
     agency, with a search box and "All" / "None" / "Streetcar only" quick
     actions, for picking specific routes (e.g. "just the streetcar"). State
@@ -472,7 +521,11 @@ end-to-end runs outside the test suite.
     `selectedRouteKeys` is `null` for "all" rather than a populated Set, so
     the default path stays cheap.
   - "Frequent network only" — rebuilds the route layer filtered to
-    `headway_minutes <= 15` (`FREQUENT_MAX_HEADWAY`); state syncs to `?freq=1`.
+    `headway_minutes <= 15` (`FREQUENT_MAX_HEADWAY`). **Defaults to ON** —
+    opening with all ~39 routes at once was the single biggest source of map
+    clutter, more than any individual layer. `?freq=0` opts back into the
+    full network; the common case (checked) stays out of the URL, same
+    "only write the uncommon state" pattern as the route filter above.
     Composes with the route filter (both apply as AND in `buildRouteLayer()`'s
     `filter`), not a separate mechanism.
   - A single "Overlay" `<select>` — Transfer hubs / Frequent-network walkshed
