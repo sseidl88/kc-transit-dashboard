@@ -16,6 +16,7 @@
   --serious:        #ec835a;
   --critical:       #d03b3b;
   --study-color:    #4a3aa7;
+  --live-color:     #22c55e;
   --card-shadow:    0 1px 2px rgba(11,11,11,0.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -36,6 +37,7 @@
     --serious:        #ec835a;
     --critical:       #d03b3b;
     --study-color:    #9085e9;
+    --live-color:     #22c55e;
     --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
   }
 }
@@ -52,6 +54,7 @@
   --series-1:       #3987e5;
   --good-text:      #0ca30c;
   --study-color:    #9085e9;
+  --live-color:     #22c55e;
   --card-shadow:    0 1px 2px rgba(0,0,0,0.4);
 }
 
@@ -373,6 +376,41 @@ footer a { color: var(--text-muted); }
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
+
+/* Live streetcar tracker */
+#streetcar-live-map {
+  height: 420px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  margin-bottom: 0.75rem;
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--live-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.live-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live-color);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--live-color) 55%, transparent); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 4px transparent; }
+}
+.delay-good    { color: var(--good-text); font-weight: 600; }
+.delay-warning { color: color-mix(in srgb, var(--warning) 75%, var(--text-primary)); font-weight: 600; }
+.delay-serious { color: var(--serious); font-weight: 600; }
+.delay-critical{ color: var(--critical); font-weight: 600; }
 
 .stale-banner {
   margin-top: 0.75rem;

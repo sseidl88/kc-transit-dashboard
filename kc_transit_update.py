@@ -78,6 +78,12 @@ FREQUENCY_TIERS = [
 WEEKDAY_FIELDS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 DOW_FIELDS = WEEKDAY_FIELDS + ["saturday", "sunday"]
 
+# KC Streetcar's route_id in KCATA's own feed — only meaningful for the kcata
+# agency (route_ids aren't unique across agencies; jocounty could coincidentally
+# reuse "601" for something unrelated). Powers the live-tracking schedule lookup
+# in kc_streetcar_realtime.py, not the regular daily routes.json output.
+STREETCAR_ROUTE_ID = "601"
+
 
 def log(msg):
     print(f"[kc-transit] {msg}", flush=True)
@@ -315,7 +321,7 @@ def frequency_tier(headway_minutes):
 # Core pipeline
 # ---------------------------------------------------------------------------
 
-def build_dataset(zf, today):
+def build_dataset(zf, today, streetcar_route_id=None):
     routes_rows = read_csv(zf, "routes.txt")
     trips_rows = read_csv(zf, "trips.txt")
     calendar_rows = read_csv(zf, "calendar.txt")
@@ -343,6 +349,17 @@ def build_dataset(zf, today):
     saturday_ids = dates["saturday"][1]
     sunday_ids = dates["sunday"][1]
 
+    # The representative weekday/Saturday/Sunday dates above are deliberately
+    # NOT "today" -- they're the nearest upcoming date of each type, chosen
+    # for stable, comparable metrics regardless of what day the pipeline
+    # happens to run on (see pick_representative_dates). That's the wrong
+    # anchor for the streetcar's live-tracking schedule, though: real-time
+    # trip_ids are tied to *today's* actual service_id, which can be a
+    # completely different, non-overlapping trip_id range than whatever the
+    # representative Wednesday uses. So this gets its own, separately-anchored
+    # service_id lookup for the literal current date.
+    today_service_ids = active_service_ids(calendar_rows, calendar_dates_rows, today) if streetcar_route_id else set()
+
     # trip_id -> (route_id, direction_id, shape_id) for weekday service only
     trip_info = {}
     trips_weekday_count = Counter()
@@ -350,15 +367,17 @@ def build_dataset(zf, today):
     trips_sunday_count = Counter()
     route_shape_votes = defaultdict(Counter)
     route_direction_votes = defaultdict(Counter)
+    streetcar_trip_direction = {}  # trip_id -> direction_id, for streetcar trips actually running today
 
     for row in trips_rows:
         route_id = row.get("route_id")
         service_id = row.get("service_id")
+        trip_id = row.get("trip_id")
         if not route_id or not service_id:
             continue
         if service_id in weekday_ids:
             trips_weekday_count[route_id] += 1
-            trip_info[row.get("trip_id")] = {
+            trip_info[trip_id] = {
                 "route_id": route_id,
                 "direction_id": row.get("direction_id") or "0",
                 "shape_id": row.get("shape_id"),
@@ -370,15 +389,20 @@ def build_dataset(zf, today):
             trips_saturday_count[route_id] += 1
         elif service_id in sunday_ids:
             trips_sunday_count[route_id] += 1
+        if route_id == streetcar_route_id and service_id in today_service_ids:
+            streetcar_trip_direction[trip_id] = row.get("direction_id") or "0"
 
-    # Stream stop_times.txt once, only tracking weekday trips.
+    # Stream stop_times.txt once, only tracking weekday trips (plus today's
+    # actual streetcar trips, tracked separately -- see above).
     trip_bounds = {}  # trip_id -> [min_seq, min_time, max_seq, max_time]
     route_stops = defaultdict(set)
     stop_routes = defaultdict(set)  # stop_id -> set of route_id, for transfer-hub detection
+    streetcar_schedule = defaultdict(list)  # trip_id -> [{stop_sequence, stop_id, scheduled_seconds}], streetcar only
     for row in stream_csv(zf, "stop_times.txt"):
         trip_id = row.get("trip_id")
         info = trip_info.get(trip_id)
-        if info is None:
+        is_streetcar_today = trip_id in streetcar_trip_direction
+        if info is None and not is_streetcar_today:
             continue
         try:
             seq = int(row.get("stop_sequence", ""))
@@ -386,17 +410,21 @@ def build_dataset(zf, today):
             continue
         t = gtfs_time_to_seconds(row.get("departure_time") or row.get("arrival_time"))
         stop_id = row.get("stop_id")
-        if stop_id:
-            route_stops[info["route_id"]].add(stop_id)
-            stop_routes[stop_id].add(info["route_id"])
-        bounds = trip_bounds.get(trip_id)
-        if bounds is None:
-            trip_bounds[trip_id] = [seq, t, seq, t]
-        else:
-            if seq < bounds[0]:
-                bounds[0], bounds[1] = seq, t
-            if seq > bounds[2]:
-                bounds[2], bounds[3] = seq, t
+        if info is not None:
+            if stop_id:
+                route_stops[info["route_id"]].add(stop_id)
+                stop_routes[stop_id].add(info["route_id"])
+            bounds = trip_bounds.get(trip_id)
+            if bounds is None:
+                trip_bounds[trip_id] = [seq, t, seq, t]
+            else:
+                if seq < bounds[0]:
+                    bounds[0], bounds[1] = seq, t
+                if seq > bounds[2]:
+                    bounds[2], bounds[3] = seq, t
+        if is_streetcar_today and stop_id and t is not None:
+            streetcar_schedule[trip_id].append(
+                {"stop_sequence": seq, "stop_id": stop_id, "scheduled_seconds": t})
 
     # Aggregate start times + one-way trip durations per route, restricted to
     # each route's dominant direction (a mixed-direction average would be
@@ -562,7 +590,16 @@ def build_dataset(zf, today):
     geojson = {"type": "FeatureCollection", "features": features}
     hubs_geojson = {"type": "FeatureCollection", "features": hub_features}
     stops_geojson = {"type": "FeatureCollection", "features": stop_features}
-    return routes_out, geojson, hubs_geojson, stops_geojson, meta
+
+    streetcar_schedule_out = {}
+    for trip_id, stops in streetcar_schedule.items():
+        stops.sort(key=lambda s: s["stop_sequence"])
+        streetcar_schedule_out[trip_id] = {
+            "direction_id": streetcar_trip_direction[trip_id],
+            "stops": stops,
+        }
+
+    return routes_out, geojson, hubs_geojson, stops_geojson, meta, streetcar_schedule_out
 
 
 # ---------------------------------------------------------------------------
@@ -702,8 +739,10 @@ def main():
     as_of = datetime.strptime(args.as_of_date, "%Y-%m-%d").date() if args.as_of_date \
         else datetime.now(timezone.utc).date()
 
+    streetcar_route_id = STREETCAR_ROUTE_ID if args.agency == "kcata" else None
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
-        routes_out, geojson, hubs_geojson, stops_geojson, meta = build_dataset(zf, as_of)
+        routes_out, geojson, hubs_geojson, stops_geojson, meta, streetcar_schedule = build_dataset(
+            zf, as_of, streetcar_route_id=streetcar_route_id)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     meta["generated_at"] = now_iso
@@ -725,6 +764,14 @@ def main():
     (out_dir / "routes.geojson").write_text(json.dumps(geojson), encoding="utf-8")
     (out_dir / "hubs.geojson").write_text(json.dumps(hubs_geojson), encoding="utf-8")
     (out_dir / "stops.geojson").write_text(json.dumps(stops_geojson), encoding="utf-8")
+
+    if streetcar_route_id:
+        (out_dir / "streetcar_schedule.json").write_text(json.dumps({
+            "generated_at": now_iso,
+            "route_id": streetcar_route_id,
+            "trips": streetcar_schedule,
+        }, indent=2), encoding="utf-8")
+        log(f"Wrote streetcar_schedule.json ({len(streetcar_schedule)} trips)")
 
     history, trending_up, trending_down, added, discontinued = update_history(
         routes_out, as_of.isoformat(), last_modified, out_dir / "history.json")

@@ -10,17 +10,23 @@ agencies: KCATA and RideKC Johnson County Transit (Kansas City metro).
 
 ## Key rules
 
-- **Scope is scheduled service only — not real-time, not ridership, not official
-  on-time performance.** KCATA doesn't publish those as an open API:
+- **Scope is scheduled service only for every metric except the live streetcar
+  tracker — not ridership, not official on-time performance.** KCATA doesn't
+  publish those as an open API:
   - GTFS-Realtime (vehicle positions, trip updates) exists via Swiftly
-    (`api.goswift.ly/real-time/kcata/...`) but returns `401 Unauthorized` —
-    requires a Bearer token KCATA/Swiftly would have to issue.
+    (`api.goswift.ly/real-time/kcata/...`) and returns `401 Unauthorized`
+    hit directly — but **Transitland already holds an authorized key** and
+    re-serves it through a cached REST pass-through, confirmed working with
+    the existing `TRANSITLAND_API_KEY`. This became the live streetcar
+    tracker, kept as its own additive module (`kc_streetcar_realtime.py`,
+    `streetcar-live-section` — see its own section below) rather than
+    retrofitted into the scheduled-service metrics elsewhere on this page,
+    per the plan when this was still hypothetical.
   - Ridership and on-time-performance figures are published as monthly PDF
     "Key Performance Indicator" reports at `ridekc.org/planning/dashboard` —
     system-wide aggregates, not a per-route daily API, and not worth scraping
-    for a "daily" dashboard since they update monthly.
-  - If real-time access is ever granted, that becomes an additive module —
-    don't retrofit the existing metrics to fake precision they don't have.
+    for a "daily" dashboard since they update monthly. The live tracker's own
+    delay estimate is explicitly not this — see its section for the distinction.
 - Data source is **KCATA's public static GTFS feed** — freely downloadable, no
   auth, no rate limit observed... from a residential/normal network. It is
   **not reachable from cloud/datacenter IPs** — confirmed with two full runs
@@ -55,6 +61,10 @@ Agency GTFS static zips → kc_transit_update.py --agency {kcata,jocounty} (dail
                          → JSON/GeoJSON committed to docs/data/ (kcata) and docs/data/jocounty/ (JCT)
                          → GitHub Pages serves docs/ as a static site
                          → docs/index.html fetches both agencies' data and merges client-side
+
+KCATA real-time feed (via Transitland pass-through) → kc_streetcar_realtime.py (every 5 min cron)
+                         → streetcar_live.json / streetcar_delays.json committed to docs/data/
+                         → docs/index.html polls those every 60s — see "Live streetcar tracker" below
 ```
 
 - No build step — vanilla JS inline in `docs/index.html`, Leaflet loaded via CDN
@@ -654,6 +664,117 @@ land exactly on that route), and confirmed the output's ride time matched
 
 ---
 
+## Live streetcar tracker (`kc_streetcar_realtime.py`, `streetcar-live-section`)
+
+**Real-time data turned out to be available after all** — the "Key rules"
+section above's real-time gap (401 from `api.goswift.ly` without a bearer
+token) is only true of hitting Swiftly *directly*. Transitland already holds
+an authorized key for KCATA's real-time feed and re-serves it through its own
+cached REST pass-through
+(`transit.land/api/v2/rest/feeds/f-kcata~rt/download_latest_rt/{type}.json`),
+fetched and cached once per minute. Confirmed working with the project's
+existing `TRANSITLAND_API_KEY` — no new secret, no agency contact needed.
+Scoped to the KC Streetcar specifically (route_id `601` in KCATA's feed, GTFS
+route_type `0`), not the full bus fleet, per what was actually asked for.
+
+**Why this can't just run in the browser**: GitHub Pages is static-only, and
+embedding the API key in client-side JS would expose it to anyone who views
+source. So `kc_streetcar_realtime.py` runs server-side via a **separate**
+GitHub Actions workflow (`.github/workflows/streetcar-realtime.yml`, cron
+`*/5 * * * *` + `workflow_dispatch` — deliberately not folded into
+`daily-update.yml`, since this is a completely different cadence and kind of
+data) and writes small static JSON snapshots into `docs/data/`, which the
+frontend polls every 60s. Same "JSON files are the database" pattern as
+everything else in this project, just refreshed far more often. This means
+"live" here means *as fresh as the last 5-minute run*, not sub-second —
+stated plainly in the section copy, not oversold. 5-minute cadence was a
+deliberate tradeoff (chosen with the user): frequent enough to feel current,
+without generating an unreasonable number of permanent commits in git
+history (~288/day). Public repos get unlimited GitHub Actions minutes, so
+there's no cost concern either way.
+
+**`docs/data/streetcar_live.json`** — current position, speed, bearing,
+current status (`STOPPED_AT`/`IN_TRANSIT_TO`), current stop, and live
+occupancy (status + percentage) for every streetcar vehicle, overwritten
+each run. Occupancy wasn't asked for — it's just part of the same feed
+payload Swiftly already provides, so it's shown for free rather than
+discarded. Rendered on a small dedicated Leaflet map (its own instance, not
+layered onto the main map, per the same "each tool gets its own section"
+pattern the design tool and trip-time tool already use) with a pulsing
+green `--live-color` marker style — green chosen specifically because it's
+distinct from every other categorical color already on this page (frequency
+blue, study violet, design magenta, historic sepia, TOD aqua, hub/walkshed
+gold, stop density red).
+
+**`docs/data/streetcar_schedule.json`** — a small addition to the *daily*
+pipeline (`kc_transit_update.py`, gated behind `streetcar_route_id` /
+`STREETCAR_ROUTE_ID = "601"`, only passed for the `kcata` agency): for every
+streetcar trip running **today** (not the representative weekday date used
+for the rest of the metrics — see the bug below), the full stop-by-stop
+schedule (`stop_sequence`, `stop_id`, `scheduled_seconds`). This is what lets
+the live tracker compute delay without re-parsing the whole GTFS zip every
+5 minutes.
+
+**A real, load-bearing bug caught before this shipped**: the daily pipeline's
+`pick_representative_dates()` deliberately anchors the regular weekday/
+Saturday/Sunday metrics to the *nearest* date of each type (e.g. the nearest
+upcoming Wednesday) rather than literally today — correct for those, since
+it keeps metrics stable and comparable regardless of what day the pipeline
+happens to run on. That's the wrong anchor for the streetcar schedule,
+though: real-time GTFS-RT trip_ids are tied to *today's* actual service_id.
+First version of `streetcar_schedule.json` used the representative
+Wednesday's trips, and testing against the real live feed on an actual
+Friday showed **zero overlap at all** between the schedule's trip_id range
+(391333–391806) and the live feed's active trip_ids (391147–391271) — not a
+near-miss, a completely different range, meaning delay computation could
+never find a matching trip no matter how long it ran. Fixed by giving the
+streetcar schedule its own, separately-anchored `active_service_ids(...,
+today)` lookup, independent of the representative-date selection used
+everywhere else in `build_dataset()`. Covered by
+`test_streetcar_schedule_uses_todays_date_not_representative_weekday`, a
+fixture with two same-route trips on two different service patterns
+(Wednesday-only vs. Friday-only) specifically built to catch a regression
+back to the representative-date anchor.
+
+**`docs/data/streetcar_delays.json`** — a rolling log of *observed* schedule
+adherence, appended to each run and trimmed to the last 3 days (the frontend
+only ever shows today; the buffer just avoids an empty view right after
+midnight). Deliberately built from actual observed stop arrivals — a vehicle
+position entity showing `currentStatus == STOPPED_AT` at a stop, compared
+against that trip's scheduled time — not from GTFS-RT's `trip_updates`
+arrival *predictions* for stops not yet reached, which shift run to run and
+would make for a moving, not-quite-honest "how did it do" record. Deduped by
+`(service_date, trip_id, stop_id)` so the same stop isn't recorded twice
+across consecutive polls.
+
+This is genuinely a **sample**, not a complete record, and the section copy
+says so plainly: a streetcar usually dwells at a stop for well under 5
+minutes, so most stops on most trips are never caught mid-dwell by a
+5-minute poll. And there's no way to know *why* a trip was early or late —
+GTFS-RT doesn't carry a reason code, so the tracker doesn't pretend to.
+This is this dashboard's own estimate against the *published static*
+schedule, explicitly **not** official KCATA on-time performance (which is
+only available as monthly system-wide PDF aggregates, same distinction
+"Key rules" draws at the top of this file).
+
+Delay severity in the table reuses the dataviz palette's existing
+`--good`/`--warning`/`--serious`/`--critical` tokens (defined in
+`style.css` but, until this feature, not actually applied anywhere else on
+the page) — within 2 min = good, 2–5 = warning, 5–10 = serious, 10+ =
+critical.
+
+**Direction labels verified against real data, not assumed**: `direction_id`
+0 vs. 1 isn't self-explanatory from the feed alone, so before hardcoding
+"River Market-bound" / "Union Station-bound" labels, the actual relationship
+was checked against a live snapshot — direction 0's `stop_sequence`
+increases together with latitude (Union Station-area start, River Market-area
+end), direction 1 is the reverse. Got this backwards on the first pass
+(labels initially swapped) and caught it by checking the real data before
+shipping, same standard applied to every other surprising or unverified
+claim in this project.
+
+---
+
 ## Testing
 
 `tests/test_pipeline.py` (pytest, run via `.github/workflows/ci.yml` on every
@@ -663,12 +784,17 @@ discontinued/reconciliation logic, the stops/hubs layers (frequent-flag
 correctness, the 3-route hub threshold), `simplify_polyline()` (collapses
 collinear points, keeps real corners, leaves short lines untouched),
 `avg_speed_mph` (checked against the fixture's known stop-to-stop trip
-time), `AGENCIES` config sanity, and an end-to-end `build_dataset()` pass
-against small synthetic GTFS zips built in-memory. The frontend's
-point-in-polygon logic isn't covered here (it's
-pure JS with no Python equivalent) — it was validated ad hoc against the real
-`stops.geojson`/`kcmo_council_districts.geojson` output via Node before
-shipping, not via an automated test.
+time), `AGENCIES` config sanity, `streetcar_schedule.json` extraction
+(including the representative-date regression test described above), and an
+end-to-end `build_dataset()` pass against small synthetic GTFS zips built
+in-memory. The frontend's point-in-polygon logic and the live tracker's
+render functions (`renderStreetcarLiveMap`, `renderStreetcarDelayStats`,
+etc.) aren't covered here (pure JS, no Python equivalent) — validated ad hoc
+against real captured data via a small mock-DOM Node harness before shipping,
+not via an automated test. `kc_streetcar_realtime.py` itself was run
+end-to-end locally against the real live feed (using a user-supplied
+Transitland key) before shipping, including verifying delay computation
+actually produces sane, correctly-signed values against real vehicle data.
 
 Separately: the `kc-metro.com` feed host was unreachable from the sandboxed dev
 environment during initial build (works fine from GitHub Actions' runners).

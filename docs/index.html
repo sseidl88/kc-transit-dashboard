@@ -75,6 +75,40 @@
     <p class="section-note" id="tod-note" style="margin-top:0.5rem"></p>
   </section>
 
+  <section id="streetcar-live-section">
+    <h2>Where's the streetcar right now? <span class="live-badge">Live</span></h2>
+    <p class="section-note">
+      KCATA's real-time vehicle feed, refreshed every 5 minutes by a background job (GitHub Pages can't
+      safely call it live from your browser — that would expose the API key). Position, speed, and live
+      occupancy come straight from the feed; nothing here is estimated.
+    </p>
+    <div id="streetcar-live-map"></div>
+    <p class="section-note" id="streetcar-live-note"></p>
+    <h3 class="subhead">Today's on-time tracking</h3>
+    <p class="section-note">
+      This dashboard's own estimate, not official KCATA on-time performance (which is only published as
+      monthly system-wide PDF reports — see the note at the top of this page). Computed by comparing each
+      vehicle's actual observed arrival at a stop against that trip's published static schedule. It's a
+      <strong>sample</strong>, not a complete record — a streetcar usually dwells at a stop for well under
+      5 minutes, so most stops on most trips are never caught mid-dwell by a 5-minute poll. And there's no
+      way to know <em>why</em> a trip was running early or late — GTFS-RT doesn't carry a reason code.
+    </p>
+    <div class="stat-row" id="streetcar-delay-stats"></div>
+    <div class="table-card" style="margin-top:0.75rem">
+      <table class="routes">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Direction</th>
+            <th>Stop</th>
+            <th>Delay</th>
+          </tr>
+        </thead>
+        <tbody id="streetcar-delay-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="trip-section">
     <h2>How much longer does the bus actually take?</h2>
     <p class="section-note">
@@ -1706,6 +1740,172 @@ function renderTodStats(todGeojson) {
     parcels may already be parks, churches, or schools rather than vacant/redevelopable land.`;
 }
 
+// --- Live streetcar tracker. GitHub Pages is static-only, so the browser
+// can't safely poll Transitland directly (that would expose the API key) --
+// instead a background job (.github/workflows/streetcar-realtime.yml, every
+// 5 min) writes small static JSON snapshots, and this just polls those, same
+// "JSON files are the database" pattern as everything else on this page,
+// just refreshed far more often. STREETCAR_LIVE_COLOR intentionally distinct
+// from every other categorical color already in use (frequency blue, study
+// violet, design magenta, historic sepia, TOD aqua, hub/walkshed gold, stop
+// density red) -- a true green reads unambiguously as "live" and won't be
+// mistaken for any of those.
+const STREETCAR_LIVE_COLOR = "#22c55e";
+const STREETCAR_ROUTE_ID = "601";
+// Verified against live vehicle data, not assumed: direction_id 0's stop_sequence
+// increases with latitude (Union Station area -> River Market), direction_id 1
+// is the reverse.
+const STREETCAR_DIRECTION_LABELS = { 0: "River Market-bound", 1: "Union Station-bound" };
+const STREETCAR_STATUS_LABELS = { IN_TRANSIT_TO: "en route to", STOPPED_AT: "stopped at", INCOMING_AT: "approaching" };
+const STREETCAR_LIVE_REFRESH_MS = 60000; // background job only updates every 5 min; no point polling much faster
+let streetcarLiveMap = null;
+let streetcarLiveMarkers = null;
+
+function chicagoTodayServiceDate() {
+  // GTFS service_date convention (YYYYMMDD), anchored to the feed's own
+  // timezone (America/Chicago) rather than the viewer's local timezone --
+  // matters for anyone checking this page from outside Central time.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date()).replaceAll("-", "");
+}
+
+function delaySeverityClass(delayMinutes) {
+  const abs = Math.abs(delayMinutes);
+  if (abs <= 2) return "delay-good";
+  if (abs <= 5) return "delay-warning";
+  if (abs <= 10) return "delay-serious";
+  return "delay-critical";
+}
+
+function formatDelay(delayMinutes) {
+  if (Math.abs(delayMinutes) < 0.05) return "on time";
+  return delayMinutes > 0 ? `${delayMinutes.toFixed(1)} min late` : `${Math.abs(delayMinutes).toFixed(1)} min early`;
+}
+
+function renderStreetcarLiveMap(live) {
+  if (!streetcarLiveMarkers) return;
+  streetcarLiveMarkers.clearLayers();
+  for (const v of live.vehicles || []) {
+    if (v.lat == null || v.lon == null) continue;
+    const dir = STREETCAR_DIRECTION_LABELS[v.direction_id] || "";
+    const statusLabel = STREETCAR_STATUS_LABELS[v.current_status] || v.current_status || "";
+    const occ = v.occupancy_status ? v.occupancy_status.replaceAll("_", " ").toLowerCase() : null;
+    const marker = L.circleMarker([v.lat, v.lon], {
+      radius: 8, color: "#ffffff", weight: 2, fillColor: STREETCAR_LIVE_COLOR, fillOpacity: 1,
+    });
+    marker.bindPopup(`
+      <b>Streetcar ${v.vehicle_id || "—"}</b>${dir ? ` — ${dir}` : ""}
+      <div class="study-popup">
+        ${statusLabel} stop ${v.stop_id || "—"}<br>
+        Speed: ${v.speed_mph != null ? v.speed_mph + " mph" : "—"}<br>
+        ${occ ? `Occupancy: ${occ}${v.occupancy_percentage != null ? ` (${v.occupancy_percentage}%)` : ""}<br>` : ""}
+      </div>`);
+    marker.addTo(streetcarLiveMarkers);
+  }
+}
+
+function renderStreetcarLiveNote(live) {
+  const el = document.getElementById("streetcar-live-note");
+  const count = (live.vehicles || []).length;
+  const ageMin = live.generated_at ? Math.round((Date.now() - new Date(live.generated_at)) / 60000) : null;
+  let text = count === 0
+    ? "No streetcars currently running (outside service hours, or between trips)."
+    : `${count} streetcar${count === 1 ? "" : "s"} running, positions updated ${ageMin != null ? ageMin + " min ago" : "recently"}.`;
+  if (ageMin != null && ageMin > 20) {
+    text += " This looks stale — the background tracker may have missed a run; check the Actions tab.";
+  }
+  el.textContent = text;
+}
+
+async function refreshStreetcarLive() {
+  try {
+    const live = await loadJSON("data/streetcar_live.json");
+    renderStreetcarLiveMap(live);
+    renderStreetcarLiveNote(live);
+  } catch (err) {
+    console.warn("Streetcar live data unavailable:", err);
+    document.getElementById("streetcar-live-note").textContent =
+      "Live streetcar data isn't available yet — the background tracker may not have run yet.";
+  }
+}
+
+function renderStreetcarDelayStats(records) {
+  const el = document.getElementById("streetcar-delay-stats");
+  if (records.length === 0) {
+    el.innerHTML = `<div class="stat-tile"><div class="value">—</div>
+      <div class="label">No observations recorded yet today</div></div>`;
+    return;
+  }
+  const avg = records.reduce((sum, r) => sum + r.delay_minutes, 0) / records.length;
+  const onTime = records.filter(r => Math.abs(r.delay_minutes) <= 2).length;
+  const tiles = [
+    { label: "Stops sampled today", value: records.length },
+    { label: "Average delay", value: `${avg >= 0 ? "+" : ""}${avg.toFixed(1)} min` },
+    { label: "Within 2 min of schedule", value: `${Math.round((onTime / records.length) * 100)}%` },
+  ];
+  el.innerHTML = tiles.map(t =>
+    `<div class="stat-tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`
+  ).join("");
+}
+
+function renderStreetcarDelayTable(records) {
+  const tbody = document.getElementById("streetcar-delay-tbody");
+  const sorted = [...records].sort((a, b) => b.observed_time_local.localeCompare(a.observed_time_local));
+  tbody.innerHTML = sorted.map(r => {
+    const time = new Date(r.observed_time_local).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const dir = STREETCAR_DIRECTION_LABELS[r.direction_id] || "";
+    return `<tr>
+      <td>${time}</td>
+      <td>${dir}</td>
+      <td>${r.stop_id}</td>
+      <td class="${delaySeverityClass(r.delay_minutes)}">${formatDelay(r.delay_minutes)}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function refreshStreetcarDelays() {
+  try {
+    const delays = await loadJSON("data/streetcar_delays.json");
+    const today = chicagoTodayServiceDate();
+    const todays = delays.filter(d => d.service_date === today);
+    renderStreetcarDelayStats(todays);
+    renderStreetcarDelayTable(todays);
+  } catch (err) {
+    console.warn("Streetcar delay data unavailable:", err);
+  }
+}
+
+function initStreetcarLiveTracker(mergedRouteGeojson) {
+  const container = document.getElementById("streetcar-live-map");
+  if (!container) return;
+
+  streetcarLiveMap = L.map("streetcar-live-map", { scrollWheelZoom: false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(streetcarLiveMap);
+
+  const streetcarFeatures = (mergedRouteGeojson.features || [])
+    .filter(f => f.properties.route_id === STREETCAR_ROUTE_ID && f.properties.agency_id === "kcata");
+  if (streetcarFeatures.length) {
+    const lineLayer = L.geoJSON({ type: "FeatureCollection", features: streetcarFeatures }, {
+      style: () => ({ color: "#2a78d6", weight: 3, opacity: 0.5 }),
+    }).addTo(streetcarLiveMap);
+    streetcarLiveMap.fitBounds(lineLayer.getBounds(), { padding: [20, 20] });
+  } else {
+    streetcarLiveMap.setView([39.09, -94.58], 13); // downtown KC fallback if the route line hasn't loaded
+  }
+
+  streetcarLiveMarkers = L.layerGroup().addTo(streetcarLiveMap);
+
+  refreshStreetcarLive();
+  refreshStreetcarDelays();
+  setInterval(() => {
+    refreshStreetcarLive();
+    refreshStreetcarDelays();
+  }, STREETCAR_LIVE_REFRESH_MS);
+}
+
 function renderStudyCards(studiesGeojson) {
   if (!studiesGeojson || !studiesGeojson.features) return;
   const areas = studiesGeojson.features.filter(f =>
@@ -1893,6 +2093,11 @@ async function init() {
     renderLegend();
     renderMap(mergedGeojson, mergedHubs, mergedStops, studiesGeojson, historicGeojson, todGeojson);
     renderTodStats(todGeojson);
+    try {
+      initStreetcarLiveTracker(mergedGeojson);
+    } catch (err) {
+      console.warn("Streetcar live tracker failed to initialize:", err);
+    }
     initRouteFilter();
     initDesignTool(studiesGeojson, mergedStops);
     initHistoricSlider();

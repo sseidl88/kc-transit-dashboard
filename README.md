@@ -10,8 +10,14 @@ the people who need it most?
 ## What it shows
 
 Built from each agency's public GTFS static feed (routes, stops, shapes, schedules),
-pulled daily by GitHub Actions:
+pulled daily by GitHub Actions, plus one genuinely real-time piece (see below):
 
+- **Where's the streetcar right now?** — live KC Streetcar positions, speed, and
+  occupancy, refreshed every 5 minutes via KCATA's real-time feed (routed through
+  Transitland's cached API, since GitHub Pages can't safely call it directly).
+  Paired with a same-day on-time tracker built from actually-observed stop
+  arrivals vs. the published schedule — explicitly a sample, not official KCATA
+  performance data, and there's no way to know *why* a trip is running late
 - A map of every weekday route across both agencies, colored by scheduled frequency
   (opens showing just the frequent network by default — full network is one click
   away), with toggles for transfer hubs (stops served by 3+ routes), a frequent-network
@@ -99,6 +105,11 @@ instead (repo secret `TRANSITLAND_API_KEY`). Running from a normal residential
 network, the script falls back to each agency's direct feed with no key needed.
 See [CLAUDE.md](CLAUDE.md) for details, including why Unified Government Transit
 and IndeBus aren't included.
+
+The live streetcar tracker runs separately (`python kc_streetcar_realtime.py`,
+requires `TRANSITLAND_API_KEY` — no fallback, since there's no direct real-time
+feed to fall back to) and only makes sense to run after `kc_transit_update.py
+--agency kcata` has produced `docs/data/streetcar_schedule.json` at least once.
 
 ## Tests
 
