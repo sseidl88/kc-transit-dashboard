@@ -3468,5 +3468,75 @@
     "scheduled_time_local": "2026-08-16T13:00:00-05:00",
     "observed_time_local": "2026-08-16T12:57:03-05:00",
     "delay_minutes": -3.0
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "389057",
+    "direction_id": 1,
+    "stop_id": "1602",
+    "stop_sequence": 4,
+    "scheduled_time_local": "2026-08-16T13:30:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:03-05:00",
+    "delay_minutes": -0.9
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "388692",
+    "direction_id": 0,
+    "stop_id": "1630",
+    "stop_sequence": 1,
+    "scheduled_time_local": "2026-08-16T13:40:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:00-05:00",
+    "delay_minutes": -11.0
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "388689",
+    "direction_id": 0,
+    "stop_id": "1610",
+    "stop_sequence": 11,
+    "scheduled_time_local": "2026-08-16T13:30:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:04-05:00",
+    "delay_minutes": -0.9
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "388691",
+    "direction_id": 0,
+    "stop_id": "1630",
+    "stop_sequence": 1,
+    "scheduled_time_local": "2026-08-16T13:30:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:00-05:00",
+    "delay_minutes": -1.0
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "388690",
+    "direction_id": 0,
+    "stop_id": "1814",
+    "stop_sequence": 5,
+    "scheduled_time_local": "2026-08-16T13:27:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:03-05:00",
+    "delay_minutes": 2.0
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "389056",
+    "direction_id": 1,
+    "stop_id": "1607",
+    "stop_sequence": 9,
+    "scheduled_time_local": "2026-08-16T13:29:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:04-05:00",
+    "delay_minutes": 0.1
+  },
+  {
+    "service_date": "20260816",
+    "trip_id": "389058",
+    "direction_id": 1,
+    "stop_id": "1598",
+    "stop_sequence": 1,
+    "scheduled_time_local": "2026-08-16T13:30:00-05:00",
+    "observed_time_local": "2026-08-16T13:29:04-05:00",
+    "delay_minutes": -0.9
   }
 ]
