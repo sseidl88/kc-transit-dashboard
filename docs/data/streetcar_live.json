@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T06:54:08.332122+00:00",
+  "generated_at": "2026-08-16T07:24:25.732772+00:00",
   "route_id": "601",
   "vehicles": [
     {
@@ -8,16 +8,16 @@
       "direction_id": 1,
       "start_time": "25:23:00",
       "start_date": "20260815",
-      "lat": 39.11124,
-      "lon": -94.580956,
+      "lat": 39.1112,
+      "lon": -94.58098,
       "bearing": null,
-      "speed_mph": 0.5,
+      "speed_mph": 0.7,
       "current_status": "IN_TRANSIT_TO",
       "stop_id": "1600",
       "stop_sequence": 2,
       "occupancy_status": "MANY_SEATS_AVAILABLE",
-      "occupancy_percentage": 7,
-      "timestamp": "1786863237"
+      "occupancy_percentage": 2,
+      "timestamp": "1786865037"
     }
   ]
 }
