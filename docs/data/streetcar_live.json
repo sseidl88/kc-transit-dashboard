@@ -1,5 +1,74 @@
 {
-  "generated_at": "2026-08-17T10:07:11.411251+00:00",
+  "generated_at": "2026-08-17T10:46:15.137952+00:00",
   "route_id": "601",
-  "vehicles": []
+  "vehicles": [
+    {
+      "vehicle_id": "806",
+      "trip_id": "391690",
+      "direction_id": 1,
+      "start_time": "05:18:00",
+      "start_date": "20260817",
+      "lat": 39.057053,
+      "lon": -94.5861,
+      "bearing": 181.2,
+      "speed_mph": 7.4,
+      "current_status": "IN_TRANSIT_TO",
+      "stop_id": "1623",
+      "stop_sequence": 13,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 2,
+      "timestamp": "1786963447"
+    },
+    {
+      "vehicle_id": "807",
+      "trip_id": "391334",
+      "direction_id": 0,
+      "start_time": "05:30:00",
+      "start_date": "20260817",
+      "lat": 39.084274,
+      "lon": -94.584,
+      "bearing": 5,
+      "speed_mph": 6.2,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1619",
+      "stop_sequence": 9,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 32,
+      "timestamp": "1786963449"
+    },
+    {
+      "vehicle_id": "811",
+      "trip_id": "391692",
+      "direction_id": 1,
+      "start_time": "05:30:00",
+      "start_date": "20260817",
+      "lat": 39.092457,
+      "lon": -94.583595,
+      "bearing": 181.9,
+      "speed_mph": 27.5,
+      "current_status": "IN_TRANSIT_TO",
+      "stop_id": "1607",
+      "stop_sequence": 9,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 17,
+      "timestamp": "1786963445"
+    },
+    {
+      "vehicle_id": "813",
+      "trip_id": "391333",
+      "direction_id": 0,
+      "start_time": "05:15:00",
+      "start_date": "20260817",
+      "lat": 39.111416,
+      "lon": -94.581,
+      "bearing": 10,
+      "speed_mph": 12.0,
+      "current_status": "IN_TRANSIT_TO",
+      "stop_id": "1598",
+      "stop_sequence": 18,
+      "occupancy_status": null,
+      "occupancy_percentage": null,
+      "timestamp": "1786963447"
+    }
+  ]
 }
