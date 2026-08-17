@@ -1,40 +1,5 @@
 {
-  "generated_at": "2026-08-17T05:29:18.820502+00:00",
+  "generated_at": "2026-08-17T06:02:17.972513+00:00",
   "route_id": "601",
-  "vehicles": [
-    {
-      "vehicle_id": "808",
-      "trip_id": "389123",
-      "direction_id": 1,
-      "start_time": "24:33:00",
-      "start_date": "20260816",
-      "lat": 39.111614,
-      "lon": -94.58098,
-      "bearing": 185,
-      "speed_mph": 12.8,
-      "current_status": "IN_TRANSIT_TO",
-      "stop_id": "1600",
-      "stop_sequence": 2,
-      "occupancy_status": "MANY_SEATS_AVAILABLE",
-      "occupancy_percentage": 2,
-      "timestamp": "1786944544"
-    },
-    {
-      "vehicle_id": "813",
-      "trip_id": "389006",
-      "direction_id": 1,
-      "start_time": "24:03:00",
-      "start_date": "20260816",
-      "lat": 39.038757,
-      "lon": -94.58478,
-      "bearing": 159,
-      "speed_mph": 25.8,
-      "current_status": "IN_TRANSIT_TO",
-      "stop_id": "1630",
-      "stop_sequence": 18,
-      "occupancy_status": "MANY_SEATS_AVAILABLE",
-      "occupancy_percentage": 2,
-      "timestamp": "1786944543"
-    }
-  ]
+  "vehicles": []
 }
