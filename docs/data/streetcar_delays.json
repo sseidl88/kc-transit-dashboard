@@ -4538,5 +4538,15 @@
     "scheduled_time_local": "2026-08-19T00:11:00-05:00",
     "observed_time_local": "2026-08-19T00:15:58-05:00",
     "delay_minutes": 5.0
+  },
+  {
+    "service_date": "20260819",
+    "trip_id": "391690",
+    "direction_id": 1,
+    "stop_id": "1627",
+    "stop_sequence": 14,
+    "scheduled_time_local": "2026-08-19T05:41:00-05:00",
+    "observed_time_local": "2026-08-19T05:41:59-05:00",
+    "delay_minutes": 1.0
   }
 ]
