@@ -75,6 +75,30 @@
     <p class="section-note" id="tod-note" style="margin-top:0.5rem"></p>
   </section>
 
+  <section id="design-section">
+    <h2>Design your own extension</h2>
+    <p class="section-note">
+      Click the map above to sketch a hypothetical route — it snaps to real streets, then estimates
+      length, rough cost, and population served using the same methodology as the study corridors below.
+      This is a napkin-math tool, not an engineering study: street-snapping comes from
+      <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (free, public, OpenStreetMap
+      driving directions — not a transit-specific routing engine, so it may occasionally suggest a highway
+      segment a real streetcar alignment wouldn't use), and population/cost use the same estimates and
+      caveats used throughout this page.
+    </p>
+    <div class="design-controls">
+      <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
+      <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
+      <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
+      <button class="theme-toggle" id="design-copy-link" type="button">Copy link to this design</button>
+      <span class="design-hint" id="design-hint"></span>
+    </div>
+    <div class="stat-row" id="design-stats" style="display:none"></div>
+    <p class="section-note" id="design-streets"></p>
+    <div id="design-bridge-warning"></div>
+    <div id="design-comparison"></div>
+  </section>
+
   <section id="streetcar-live-section">
     <h2>Where's the streetcar right now? <span class="live-badge">Live</span></h2>
     <p class="section-note">
@@ -126,30 +150,6 @@
     </div>
     <div class="stat-row" id="trip-stats" style="display:none"></div>
     <p class="section-note" id="trip-detail"></p>
-  </section>
-
-  <section id="design-section">
-    <h2>Design your own extension</h2>
-    <p class="section-note">
-      Click the map above to sketch a hypothetical route — it snaps to real streets, then estimates
-      length, rough cost, and population served using the same methodology as the study corridors below.
-      This is a napkin-math tool, not an engineering study: street-snapping comes from
-      <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> (free, public, OpenStreetMap
-      driving directions — not a transit-specific routing engine, so it may occasionally suggest a highway
-      segment a real streetcar alignment wouldn't use), and population/cost use the same estimates and
-      caveats used throughout this page.
-    </p>
-    <div class="design-controls">
-      <button class="theme-toggle" id="design-toggle" type="button">Start designing on the map above</button>
-      <button class="theme-toggle" id="design-undo" type="button" disabled>Undo point</button>
-      <button class="theme-toggle" id="design-clear" type="button" disabled>Clear</button>
-      <button class="theme-toggle" id="design-copy-link" type="button">Copy link to this design</button>
-      <span class="design-hint" id="design-hint"></span>
-    </div>
-    <div class="stat-row" id="design-stats" style="display:none"></div>
-    <p class="section-note" id="design-streets"></p>
-    <div id="design-bridge-warning"></div>
-    <div id="design-comparison"></div>
   </section>
 
   <section id="historic-section">
@@ -1782,6 +1782,29 @@ function formatDelay(delayMinutes) {
   return delayMinutes > 0 ? `${delayMinutes.toFixed(1)} min late` : `${Math.abs(delayMinutes).toFixed(1)} min early`;
 }
 
+// Small top-down streetcar silhouette (body + two window bands) with a
+// triangular nose pointing "up" (north) by default, then rotated by the
+// vehicle's own GTFS-RT bearing (0-360, clockwise from north) so the icon
+// itself shows which way it's headed -- not just a plain dot. Rotation is
+// applied to an inner wrapper div, not the outer div Leaflet positions,
+// since rotating Leaflet's own positioning transform would break placement.
+function streetcarDivIcon(bearing) {
+  const rot = bearing == null ? 0 : bearing;
+  const svg = `
+    <svg viewBox="0 0 24 24" width="26" height="26">
+      <path d="M12 0 L17.5 7.5 L6.5 7.5 Z" fill="${STREETCAR_LIVE_COLOR}" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round"/>
+      <rect x="6.5" y="6.5" width="11" height="16.5" rx="3.5" fill="${STREETCAR_LIVE_COLOR}" stroke="#ffffff" stroke-width="1.4"/>
+      <rect x="8.7" y="10" width="6.6" height="3.2" rx="1" fill="#ffffff" fill-opacity="0.6"/>
+      <rect x="8.7" y="15.5" width="6.6" height="3.2" rx="1" fill="#ffffff" fill-opacity="0.6"/>
+    </svg>`;
+  return L.divIcon({
+    className: "streetcar-live-icon",
+    html: `<div style="transform: rotate(${rot}deg); transform-origin: 50% 50%;">${svg}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
 function renderStreetcarLiveMap(live) {
   if (!streetcarLiveMarkers) return;
   streetcarLiveMarkers.clearLayers();
@@ -1790,9 +1813,7 @@ function renderStreetcarLiveMap(live) {
     const dir = STREETCAR_DIRECTION_LABELS[v.direction_id] || "";
     const statusLabel = STREETCAR_STATUS_LABELS[v.current_status] || v.current_status || "";
     const occ = v.occupancy_status ? v.occupancy_status.replaceAll("_", " ").toLowerCase() : null;
-    const marker = L.circleMarker([v.lat, v.lon], {
-      radius: 8, color: "#ffffff", weight: 2, fillColor: STREETCAR_LIVE_COLOR, fillOpacity: 1,
-    });
+    const marker = L.marker([v.lat, v.lon], { icon: streetcarDivIcon(v.bearing) });
     marker.bindPopup(`
       <b>Streetcar ${v.vehicle_id || "—"}</b>${dir ? ` — ${dir}` : ""}
       <div class="study-popup">

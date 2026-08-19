@@ -403,7 +403,10 @@ this one does (bridge/utility work costs more).
 points on the existing route map (no second Leaflet instance — reuses
 `leafletMap` via `onMapClickForDesign`, gated behind a `designMode` flag so
 normal map interaction is unaffected when it's off) to sketch a hypothetical
-route. Each click re-requests the full point sequence from
+route. `design-section` sits immediately below `map-section` in the page
+(moved there from further down, past the trip-time and live-tracker
+sections) specifically because its copy says "click the map above" — putting
+something else's own map in between made that instruction ambiguous. Each click re-requests the full point sequence from
 **OSRM's free public router** (`router.project-osrm.org`, no key, `Access-
 Control-Allow-Origin: *` confirmed before building around it) with
 `overview=simplified` — deliberately not `full`: a Douglas-Peucker-simplified
@@ -705,6 +708,20 @@ green `--live-color` marker style — green chosen specifically because it's
 distinct from every other categorical color already on this page (frequency
 blue, study violet, design magenta, historic sepia, TOD aqua, hub/walkshed
 gold, stop density red).
+
+**Vehicle markers are a small inline-SVG streetcar silhouette**
+(`streetcarDivIcon()`), not a plain dot — a rounded body plus a triangular
+nose pointing "up" by default, rotated per-vehicle by the feed's own
+`bearing` field (already present in the payload, previously unused) via a
+CSS `transform: rotate()` on an inner wrapper div. The rotation has to land
+on an *inner* div, not the outer div Leaflet itself positions the marker
+with — rotating Leaflet's own positioning element would break placement,
+not just orientation. `L.divIcon` inherits Leaflet's default white
+background/border styling meant for icon-image markers, which would show as
+a visible box around the SVG's transparent areas — reset with `.streetcar-
+live-icon { background: transparent !important; border: none !important; }`
+in `style.css`. A `null` bearing (not every GTFS-RT ping includes one) falls
+back to pointing north rather than omitting the icon.
 
 **`docs/data/streetcar_schedule.json`** — a small addition to the *daily*
 pipeline (`kc_transit_update.py`, gated behind `streetcar_route_id` /

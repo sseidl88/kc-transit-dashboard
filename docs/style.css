@@ -385,6 +385,10 @@ footer a { color: var(--text-muted); }
   background: var(--surface-1);
   margin-bottom: 0.75rem;
 }
+.streetcar-live-icon {
+  background: transparent !important;
+  border: none !important;
+}
 .live-badge {
   display: inline-flex;
   align-items: center;
