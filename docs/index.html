@@ -102,9 +102,10 @@
   <section id="streetcar-live-section">
     <h2>Where's the streetcar right now? <span class="live-badge">Live</span></h2>
     <p class="section-note">
-      KCATA's real-time vehicle feed, refreshed every 5 minutes by a background job (GitHub Pages can't
-      safely call it live from your browser — that would expose the API key). Position, speed, and live
-      occupancy come straight from the feed; nothing here is estimated.
+      KCATA's real-time vehicle feed, refreshed periodically (targeting every 15 minutes, though GitHub's
+      own scheduler can space runs out further — see the timestamp below) by a background job (GitHub Pages
+      can't safely call it live from your browser — that would expose the API key). Position, speed, and
+      live occupancy come straight from the feed; nothing here is estimated.
     </p>
     <div id="streetcar-live-map"></div>
     <p class="section-note" id="streetcar-live-note"></p>
@@ -114,8 +115,9 @@
       monthly system-wide PDF reports — see the note at the top of this page). Computed by comparing each
       vehicle's actual observed arrival at a stop against that trip's published static schedule. It's a
       <strong>sample</strong>, not a complete record — a streetcar usually dwells at a stop for well under
-      5 minutes, so most stops on most trips are never caught mid-dwell by a 5-minute poll. And there's no
-      way to know <em>why</em> a trip was running early or late — GTFS-RT doesn't carry a reason code.
+      a minute or two, so most stops on most trips are never caught mid-dwell by a poll that realistically
+      lands every 15-45 minutes. And there's no way to know <em>why</em> a trip was running early or late —
+      GTFS-RT doesn't carry a reason code.
     </p>
     <div class="stat-row" id="streetcar-delay-stats"></div>
     <div class="table-card" style="margin-top:0.75rem">
@@ -1742,10 +1744,12 @@ function renderTodStats(todGeojson) {
 
 // --- Live streetcar tracker. GitHub Pages is static-only, so the browser
 // can't safely poll Transitland directly (that would expose the API key) --
-// instead a background job (.github/workflows/streetcar-realtime.yml, every
-// 5 min) writes small static JSON snapshots, and this just polls those, same
-// "JSON files are the database" pattern as everything else on this page,
-// just refreshed far more often. STREETCAR_LIVE_COLOR intentionally distinct
+// instead a background job (.github/workflows/streetcar-realtime.yml,
+// targeting every 15 min -- GitHub doesn't reliably honor cron intervals
+// under ~15 min on lower-traffic repos, confirmed by watching real run
+// gaps land anywhere from 25-45+ min even under a */5 schedule) writes
+// small static JSON snapshots, and this just polls those, same "JSON files
+// are the database" pattern as everything else on this page. STREETCAR_LIVE_COLOR intentionally distinct
 // from every other categorical color already in use (frequency blue, study
 // violet, design magenta, historic sepia, TOD aqua, hub/walkshed gold, stop
 // density red) -- a true green reads unambiguously as "live" and won't be
@@ -1757,7 +1761,8 @@ const STREETCAR_ROUTE_ID = "601";
 // is the reverse.
 const STREETCAR_DIRECTION_LABELS = { 0: "River Market-bound", 1: "Union Station-bound" };
 const STREETCAR_STATUS_LABELS = { IN_TRANSIT_TO: "en route to", STOPPED_AT: "stopped at", INCOMING_AT: "approaching" };
-const STREETCAR_LIVE_REFRESH_MS = 60000; // background job only updates every 5 min; no point polling much faster
+const STREETCAR_LIVE_REFRESH_MS = 60000; // background job realistically updates every 15-45 min; polling
+                                          // every 60s just means most polls see unchanged data, cheap either way
 let streetcarLiveMap = null;
 let streetcarLiveMarkers = null;
 
@@ -1832,7 +1837,11 @@ function renderStreetcarLiveNote(live) {
   let text = count === 0
     ? "No streetcars currently running (outside service hours, or between trips)."
     : `${count} streetcar${count === 1 ? "" : "s"} running, positions updated ${ageMin != null ? ageMin + " min ago" : "recently"}.`;
-  if (ageMin != null && ageMin > 20) {
+  if (ageMin != null && ageMin > 90) {
+    // 90min, not the ~15min cron target -- GitHub's scheduler doesn't reliably
+    // honor short cron intervals on lower-traffic repos (confirmed by watching
+    // real run gaps), so a wider margin avoids false "stale" flags during
+    // normal jitter while still catching an actually-broken workflow.
     text += " This looks stale — the background tracker may have missed a run; check the Actions tab.";
   }
   el.textContent = text;

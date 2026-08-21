@@ -2,7 +2,12 @@ name: KC Streetcar Live Tracker
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    # GitHub doesn't reliably honor cron intervals under ~15 min on
+    # lower-traffic repos -- a */5 schedule was observed landing 25-45+ min
+    # apart in practice, not every 5 min. */15 is a granularity GitHub
+    # tends to actually respect; see CLAUDE.md for the real-world numbers
+    # this was measured against.
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:

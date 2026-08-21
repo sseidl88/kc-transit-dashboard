@@ -62,7 +62,7 @@ Agency GTFS static zips → kc_transit_update.py --agency {kcata,jocounty} (dail
                          → GitHub Pages serves docs/ as a static site
                          → docs/index.html fetches both agencies' data and merges client-side
 
-KCATA real-time feed (via Transitland pass-through) → kc_streetcar_realtime.py (every 5 min cron)
+KCATA real-time feed (via Transitland pass-through) → kc_streetcar_realtime.py (~every 15 min cron)
                          → streetcar_live.json / streetcar_delays.json committed to docs/data/
                          → docs/index.html polls those every 60s — see "Live streetcar tracker" below
 ```
@@ -683,18 +683,35 @@ route_type `0`), not the full bus fleet, per what was actually asked for.
 **Why this can't just run in the browser**: GitHub Pages is static-only, and
 embedding the API key in client-side JS would expose it to anyone who views
 source. So `kc_streetcar_realtime.py` runs server-side via a **separate**
-GitHub Actions workflow (`.github/workflows/streetcar-realtime.yml`, cron
-`*/5 * * * *` + `workflow_dispatch` — deliberately not folded into
+GitHub Actions workflow (`.github/workflows/streetcar-realtime.yml`,
+`workflow_dispatch` + a schedule — deliberately not folded into
 `daily-update.yml`, since this is a completely different cadence and kind of
 data) and writes small static JSON snapshots into `docs/data/`, which the
 frontend polls every 60s. Same "JSON files are the database" pattern as
-everything else in this project, just refreshed far more often. This means
-"live" here means *as fresh as the last 5-minute run*, not sub-second —
-stated plainly in the section copy, not oversold. 5-minute cadence was a
-deliberate tradeoff (chosen with the user): frequent enough to feel current,
-without generating an unreasonable number of permanent commits in git
-history (~288/day). Public repos get unlimited GitHub Actions minutes, so
-there's no cost concern either way.
+everything else in this project. This means "live" here means *as fresh as
+the last completed run*, not sub-second — stated plainly in the section
+copy, not oversold.
+
+**The cron interval doesn't mean what it says, and the copy/threshold now
+account for that.** Originally shipped as `*/5 * * * *` (5-minute cadence,
+chosen with the user as a freshness/commit-volume tradeoff — ~288 commits/
+day). After a week live, checking real run timestamps showed GitHub wasn't
+honoring that at all: consecutive successful runs landed 25–45+ minutes
+apart, never close to 5. This is a known GitHub Actions limitation, not a
+bug in the workflow — GitHub doesn't guarantee scheduled-workflow timing
+under roughly 15 minutes, especially on lower-traffic public repos, and
+silently spaces runs out further rather than erroring. Fixed by being
+honest about it in three places instead of chasing a precision GitHub won't
+actually deliver: the cron is now `*/15 * * * *` (a granularity GitHub
+tends to respect more consistently, though still not exactly), the
+section copy says "targeting every 15 minutes" rather than promising a
+number, and the frontend's staleness warning threshold moved from 20 to 90
+minutes so normal scheduler jitter doesn't trip a false "this looks
+broken" message — 90 min comfortably clears the 25–45 min gaps actually
+observed while still catching a genuinely stopped workflow (which shows
+up as many hours, not tens of minutes). Public repos get unlimited GitHub
+Actions minutes either way, so none of this was ever a cost concern —
+purely a scheduling-reliability one.
 
 **`docs/data/streetcar_live.json`** — current position, speed, bearing,
 current status (`STOPPED_AT`/`IN_TRANSIT_TO`), current stop, and live
@@ -765,9 +782,10 @@ would make for a moving, not-quite-honest "how did it do" record. Deduped by
 across consecutive polls.
 
 This is genuinely a **sample**, not a complete record, and the section copy
-says so plainly: a streetcar usually dwells at a stop for well under 5
-minutes, so most stops on most trips are never caught mid-dwell by a
-5-minute poll. And there's no way to know *why* a trip was early or late —
+says so plainly: a streetcar usually dwells at a stop for well under a
+minute or two, so most stops on most trips are never caught mid-dwell by a
+poll that (realistically) lands every 15-45 minutes. And there's no way to
+know *why* a trip was early or late —
 GTFS-RT doesn't carry a reason code, so the tracker doesn't pretend to.
 This is this dashboard's own estimate against the *published static*
 schedule, explicitly **not** official KCATA on-time performance (which is

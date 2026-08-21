@@ -13,8 +13,9 @@ Built from each agency's public GTFS static feed (routes, stops, shapes, schedul
 pulled daily by GitHub Actions, plus one genuinely real-time piece (see below):
 
 - **Where's the streetcar right now?** — live KC Streetcar positions, speed, and
-  occupancy, refreshed every 5 minutes via KCATA's real-time feed (routed through
-  Transitland's cached API, since GitHub Pages can't safely call it directly).
+  occupancy, refreshed periodically (targeting every 15 minutes) via KCATA's
+  real-time feed (routed through Transitland's cached API, since GitHub Pages
+  can't safely call it directly).
   Paired with a same-day on-time tracker built from actually-observed stop
   arrivals vs. the published schedule — explicitly a sample, not official KCATA
   performance data, and there's no way to know *why* a trip is running late
