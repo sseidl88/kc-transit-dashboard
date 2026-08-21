@@ -133,6 +133,20 @@
         <tbody id="streetcar-delay-tbody"></tbody>
       </table>
     </div>
+
+    <h3 class="subhead">Delay trends</h3>
+    <p class="section-note" id="streetcar-trend-note"></p>
+    <div class="stat-row" id="streetcar-direction-stats"></div>
+    <div class="trend-legend">
+      <span class="trend-legend-item"><span class="trend-swatch delay-good"></span>Within 2 min</span>
+      <span class="trend-legend-item"><span class="trend-swatch delay-warning"></span>2–5 min</span>
+      <span class="trend-legend-item"><span class="trend-swatch delay-serious"></span>5–10 min</span>
+      <span class="trend-legend-item"><span class="trend-swatch delay-critical"></span>10+ min</span>
+    </div>
+    <h4 class="chart-title">Average delay by hour of day <span class="chart-subtitle">(early below the line, late above)</span></h4>
+    <div id="streetcar-hour-chart"></div>
+    <h4 class="chart-title">Average delay by day</h4>
+    <div id="streetcar-day-chart"></div>
   </section>
 
   <section id="trip-section">
@@ -1893,6 +1907,127 @@ function renderStreetcarDelayTable(records) {
   }).join("");
 }
 
+// --- Delay trends: aggregates ALL retained history (not just today, unlike
+// the panel above), so this genuinely improves as more days accumulate --
+// kc_streetcar_realtime.py retains 180 days for exactly this purpose. A
+// plain hand-rolled diverging SVG bar chart (no charting library, same
+// zero-dependency approach as the rest of this page): bar position (above/
+// below the zero line) encodes early-vs-late, bar color reuses the same
+// good/warning/serious/critical severity classes already used in the table
+// above rather than introducing a second, competing color language for the
+// same kind of data on the same page.
+function svgDivergingBarChart(bars, opts) {
+  const W = opts.width || 640, H = opts.height || 140;
+  const marginLeft = 8, marginRight = 8, marginTop = 8, marginBottom = 18;
+  const plotW = W - marginLeft - marginRight;
+  const plotH = H - marginTop - marginBottom;
+  const zeroY = marginTop + plotH / 2;
+  const maxAbs = Math.max(1, ...bars.map(b => Math.abs(b.value)));
+  const halfH = plotH / 2 - 4;
+  const pxPerMin = halfH / maxAbs;
+  const slotW = plotW / bars.length;
+  const barW = Math.max(2, Math.min(slotW * 0.62, 22));
+  const showLabelEvery = bars.length > 14 ? Math.ceil(bars.length / 10) : 1;
+
+  const parts = bars.map((b, i) => {
+    const x = marginLeft + i * slotW + (slotW - barW) / 2;
+    const h = b.n ? Math.max(2, Math.abs(b.value) * pxPerMin) : 0;
+    const y = b.value >= 0 ? zeroY - h : zeroY;
+    const cls = b.n ? delaySeverityClass(b.value) : "";
+    const label = i % showLabelEvery === 0
+      ? `<text class="trend-bar-label" x="${(x + barW / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle">${b.label}</text>`
+      : "";
+    const rect = h > 0
+      ? `<rect class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2"><title>${b.tooltip}</title></rect>`
+      : "";
+    return rect + label;
+  }).join("");
+
+  return `<div class="trend-chart-card"><svg class="trend-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <line class="trend-zero-line" x1="${marginLeft}" y1="${zeroY}" x2="${W - marginRight}" y2="${zeroY}" />
+    ${parts}
+  </svg></div>`;
+}
+
+function groupBy(records, keyFn) {
+  const groups = new Map();
+  for (const r of records) {
+    const k = keyFn(r);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r.delay_minutes);
+  }
+  return groups;
+}
+
+function renderStreetcarTrendNote(records) {
+  const el = document.getElementById("streetcar-trend-note");
+  if (records.length === 0) {
+    el.textContent = "No delay observations recorded yet — check back once the tracker has been running a while.";
+    return;
+  }
+  const days = [...new Set(records.map(r => r.service_date))].sort();
+  const fmtDate = (s) => `${s.slice(4, 6)}/${s.slice(6, 8)}/${s.slice(0, 4)}`;
+  el.textContent = `Based on ${records.length.toLocaleString()} observations across ${days.length} `
+    + `day${days.length === 1 ? "" : "s"} (${fmtDate(days[0])}–${fmtDate(days[days.length - 1])}). This is a `
+    + `growing dataset — it started small and sharpens the longer the tracker keeps running.`;
+}
+
+function renderStreetcarDirectionStats(records) {
+  const el = document.getElementById("streetcar-direction-stats");
+  const tiles = [0, 1].map(dir => {
+    const vals = records.filter(r => r.direction_id === dir).map(r => r.delay_minutes);
+    if (!vals.length) return null;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return { label: STREETCAR_DIRECTION_LABELS[dir] || `Direction ${dir}`, value: avg, n: vals.length };
+  }).filter(Boolean);
+  el.innerHTML = tiles.length === 0 ? "" : tiles.map(t => `
+    <div class="stat-tile">
+      <div class="value ${delaySeverityClass(t.value)}">${formatDelay(t.value)}</div>
+      <div class="label">${t.label} (n=${t.n})</div>
+    </div>`).join("");
+}
+
+function renderStreetcarHourChart(records) {
+  const el = document.getElementById("streetcar-hour-chart");
+  if (records.length === 0) {
+    el.innerHTML = `<p class="trend-chart-empty">Not enough data yet.</p>`;
+    return;
+  }
+  // Hour extracted directly from the ISO string's own offset (already
+  // America/Chicago local time from kc_streetcar_realtime.py), not via
+  // Date.getHours() -- that would read in the *viewer's* local timezone
+  // instead, wrong for anyone checking this page from outside Central time.
+  const groups = groupBy(records, r => parseInt(r.observed_time_local.slice(11, 13), 10));
+  const bars = [];
+  for (let h = 0; h < 24; h++) {
+    const vals = groups.get(h) || [];
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    const label = h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
+    bars.push({
+      label, value: avg, n: vals.length,
+      tooltip: vals.length ? `${label}: ${formatDelay(avg)} (n=${vals.length})` : `${label}: no observations`,
+    });
+  }
+  el.innerHTML = svgDivergingBarChart(bars, { width: 640, height: 140 });
+}
+
+function renderStreetcarDayChart(records) {
+  const el = document.getElementById("streetcar-day-chart");
+  if (records.length === 0) {
+    el.innerHTML = `<p class="trend-chart-empty">Not enough data yet.</p>`;
+    return;
+  }
+  const groups = groupBy(records, r => r.service_date);
+  const days = [...groups.keys()].sort();
+  const bars = days.map(d => {
+    const vals = groups.get(d);
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const label = `${d.slice(4, 6)}/${d.slice(6, 8)}`;
+    return { label, value: avg, n: vals.length, tooltip: `${label}: ${formatDelay(avg)} (n=${vals.length})` };
+  });
+  el.innerHTML = svgDivergingBarChart(bars, { width: Math.max(320, bars.length * 40), height: 140 });
+}
+
 async function refreshStreetcarDelays() {
   try {
     const delays = await loadJSON("data/streetcar_delays.json");
@@ -1900,6 +2035,10 @@ async function refreshStreetcarDelays() {
     const todays = delays.filter(d => d.service_date === today);
     renderStreetcarDelayStats(todays);
     renderStreetcarDelayTable(todays);
+    renderStreetcarTrendNote(delays);
+    renderStreetcarDirectionStats(delays);
+    renderStreetcarHourChart(delays);
+    renderStreetcarDayChart(delays);
   } catch (err) {
     console.warn("Streetcar delay data unavailable:", err);
   }

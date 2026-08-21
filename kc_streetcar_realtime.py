@@ -48,7 +48,14 @@ DATA_DIR = ROOT / "docs" / "data"
 RT_URL_TEMPLATE = "https://transit.land/api/v2/rest/feeds/f-kcata~rt/download_latest_rt/vehicle_positions.json"
 STREETCAR_ROUTE_ID = "601"
 LOCAL_TZ = ZoneInfo("America/Chicago")
-DELAY_RETENTION_DAYS = 3
+# 180 days, not the original 3 -- the frontend's "today" panel only ever
+# needed a few days of buffer, but the delay-trends view (by hour of day,
+# by direction, by day) needs real history to accumulate into, and the
+# original 3-day trim was silently deleting the exact data that view needs
+# before it could ever build up. ~110 records/day observed in practice, so
+# 180 days is roughly 20k records (a few MB) -- generous without being
+# unbounded.
+DELAY_RETENTION_DAYS = 180
 UA = "kc-transit-dashboard/1.0 (streetcar live tracker, github.com/sseidl88/kc-transit-dashboard)"
 
 
@@ -197,8 +204,8 @@ def main():
         seen_keys.add(key)
         new_records += 1
 
-    # Trim to the last few days -- frontend only ever shows "today," this is
-    # just a little buffer so a run right after midnight isn't empty.
+    # Trim to DELAY_RETENTION_DAYS -- bounds file growth while keeping enough
+    # history for the trends view (by hour of day, by direction, by day).
     cutoff = (datetime.now(LOCAL_TZ) - timedelta(days=DELAY_RETENTION_DAYS)).strftime("%Y%m%d")
     delays = [d for d in delays if d["service_date"] >= cutoff]
 

@@ -416,6 +416,70 @@ footer a { color: var(--text-muted); }
 .delay-serious { color: var(--serious); font-weight: 600; }
 .delay-critical{ color: var(--critical); font-weight: 600; }
 
+.trend-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.4rem 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.trend-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.trend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.trend-swatch.delay-good     { background: var(--good-text); }
+.trend-swatch.delay-warning  { background: color-mix(in srgb, var(--warning) 75%, var(--text-primary)); }
+.trend-swatch.delay-serious  { background: var(--serious); }
+.trend-swatch.delay-critical { background: var(--critical); }
+
+.chart-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 1.1rem 0 0.4rem;
+  color: var(--text-primary);
+}
+.chart-subtitle {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.trend-chart-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+}
+.trend-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.trend-chart-svg .delay-good     { fill: var(--good-text); }
+.trend-chart-svg .delay-warning  { fill: color-mix(in srgb, var(--warning) 75%, var(--text-primary)); }
+.trend-chart-svg .delay-serious  { fill: var(--serious); }
+.trend-chart-svg .delay-critical { fill: var(--critical); }
+.trend-bar-label {
+  fill: var(--text-muted);
+  font-size: 8.5px;
+}
+.trend-zero-line {
+  stroke: var(--baseline);
+  stroke-width: 1;
+}
+.trend-chart-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0 1rem;
+}
+
 .stale-banner {
   margin-top: 0.75rem;
   padding: 0.6rem 0.9rem;

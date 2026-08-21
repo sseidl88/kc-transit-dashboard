@@ -808,6 +808,29 @@ end), direction 1 is the reverse. Got this backwards on the first pass
 shipping, same standard applied to every other surprising or unverified
 claim in this project.
 
+**Delay trends** (below the daily table, same section): aggregates *all*
+retained history, not just today, into a by-direction comparison and two
+hand-rolled diverging SVG bar charts (by hour of day, by day) — no charting
+library, same zero-dependency approach as the rest of the page. This is
+what actually required bumping `DELAY_RETENTION_DAYS` from 3 to 180 in
+`kc_streetcar_realtime.py`: the original 3-day trim was silently deleting
+the exact history this view needs before it could ever accumulate. Bar
+*position* (above/below a zero baseline) encodes early-vs-late; bar *color*
+reuses the same good/warning/serious/critical severity classes as the daily
+table rather than introducing a second, competing color language for the
+same kind of data on the same page — position carries sign, color carries
+"how bad." Hover tooltips are native SVG `<title>` elements (zero extra
+JS/CSS), matching the project's general preference for the simplest thing
+that actually works over building custom UI machinery for a secondary view.
+Hour-of-day is parsed directly out of the `observed_time_local` ISO string's
+own characters (`.slice(11, 13)`), not via `new Date(...).getHours()` —
+the latter reads in the *viewer's* local timezone, which would silently
+mislabel every bar for anyone checking this page from outside Central time,
+same class of bug as the `chicagoTodayServiceDate()` timezone handling
+above. With only a few days of real data so far, both charts and the note
+above them say so plainly (a growing dataset that sharpens over time) rather
+than presenting a 4-point chart as if it were a settled pattern.
+
 ---
 
 ## Testing
