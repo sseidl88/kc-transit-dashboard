@@ -1,23 +1,5 @@
 {
-  "generated_at": "2026-08-22T06:35:10.098612+00:00",
+  "generated_at": "2026-08-22T07:18:44.294209+00:00",
   "route_id": "601",
-  "vehicles": [
-    {
-      "vehicle_id": "808",
-      "trip_id": "391332",
-      "direction_id": 1,
-      "start_time": "25:28:00",
-      "start_date": "20260821",
-      "lat": 39.117073,
-      "lon": -94.5723,
-      "bearing": 241,
-      "speed_mph": 7.8,
-      "current_status": "STOPPED_AT",
-      "stop_id": "1598",
-      "stop_sequence": 1,
-      "occupancy_status": "MANY_SEATS_AVAILABLE",
-      "occupancy_percentage": 2,
-      "timestamp": "1787380455"
-    }
-  ]
+  "vehicles": []
 }
