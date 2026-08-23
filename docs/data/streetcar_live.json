@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-23T09:59:21.941720+00:00",
+  "generated_at": "2026-08-23T10:31:43.181294+00:00",
   "route_id": "601",
   "vehicles": [
     {
@@ -8,16 +8,16 @@
       "direction_id": 1,
       "start_time": "05:55:00",
       "start_date": "20260823",
-      "lat": 39.11183,
-      "lon": -94.57879,
+      "lat": 39.111805,
+      "lon": -94.57888,
       "bearing": null,
-      "speed_mph": 0.4,
+      "speed_mph": 0.3,
       "current_status": "STOPPED_AT",
       "stop_id": "1600",
       "stop_sequence": 1,
       "occupancy_status": null,
       "occupancy_percentage": null,
-      "timestamp": "1787479090"
+      "timestamp": "1787481010"
     },
     {
       "vehicle_id": "806",
@@ -25,16 +25,16 @@
       "direction_id": 1,
       "start_time": "05:23:00",
       "start_date": "20260823",
-      "lat": 39.111958,
-      "lon": -94.577286,
-      "bearing": null,
-      "speed_mph": 0.1,
+      "lat": 39.09415,
+      "lon": -94.58371,
+      "bearing": 182.2,
+      "speed_mph": 13.1,
       "current_status": "STOPPED_AT",
-      "stop_id": "1600",
-      "stop_sequence": 1,
-      "occupancy_status": null,
-      "occupancy_percentage": null,
-      "timestamp": "1787479093"
+      "stop_id": "1606",
+      "stop_sequence": 7,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 2,
+      "timestamp": "1787481008"
     },
     {
       "vehicle_id": "807",
@@ -42,16 +42,16 @@
       "direction_id": 0,
       "start_time": "05:15:00",
       "start_date": "20260823",
-      "lat": 39.085598,
-      "lon": -94.584114,
-      "bearing": 181.8,
-      "speed_mph": 18.4,
+      "lat": 39.084606,
+      "lon": -94.58393,
+      "bearing": null,
+      "speed_mph": 0.0,
       "current_status": "STOPPED_AT",
-      "stop_id": "1630",
-      "stop_sequence": 1,
-      "occupancy_status": null,
-      "occupancy_percentage": null,
-      "timestamp": "1787479094"
+      "stop_id": "1619",
+      "stop_sequence": 9,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 10,
+      "timestamp": "1787481009"
     },
     {
       "vehicle_id": "808",
@@ -59,16 +59,16 @@
       "direction_id": 1,
       "start_time": "05:18:00",
       "start_date": "20260823",
-      "lat": 39.111988,
-      "lon": -94.57738,
-      "bearing": null,
-      "speed_mph": 0.7,
-      "current_status": "STOPPED_AT",
-      "stop_id": "1600",
-      "stop_sequence": 1,
-      "occupancy_status": null,
-      "occupancy_percentage": null,
-      "timestamp": "1787479092"
+      "lat": 39.080196,
+      "lon": -94.58435,
+      "bearing": 182,
+      "speed_mph": 21.9,
+      "current_status": "IN_TRANSIT_TO",
+      "stop_id": "1620",
+      "stop_sequence": 10,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 37,
+      "timestamp": "1787481013"
     },
     {
       "vehicle_id": "809",
@@ -76,16 +76,16 @@
       "direction_id": 1,
       "start_time": "10:08:00",
       "start_date": "20260823",
-      "lat": 39.112167,
-      "lon": -94.57783,
+      "lat": 39.11217,
+      "lon": -94.577835,
       "bearing": null,
-      "speed_mph": 0.2,
+      "speed_mph": 0.1,
       "current_status": "STOPPED_AT",
       "stop_id": "1600",
       "stop_sequence": 1,
       "occupancy_status": null,
       "occupancy_percentage": null,
-      "timestamp": "1787479093"
+      "timestamp": "1787481013"
     },
     {
       "vehicle_id": "810",
@@ -93,16 +93,16 @@
       "direction_id": 1,
       "start_time": "05:30:00",
       "start_date": "20260823",
-      "lat": 39.11194,
-      "lon": -94.5781,
+      "lat": 39.117065,
+      "lon": -94.57236,
       "bearing": null,
-      "speed_mph": 0.1,
+      "speed_mph": 0.0,
       "current_status": "STOPPED_AT",
       "stop_id": "1598",
       "stop_sequence": 1,
       "occupancy_status": null,
       "occupancy_percentage": null,
-      "timestamp": "1787479093"
+      "timestamp": "1787481010"
     },
     {
       "vehicle_id": "811",
@@ -110,8 +110,8 @@
       "direction_id": 1,
       "start_time": "06:10:00",
       "start_date": "20260823",
-      "lat": 39.112167,
-      "lon": -94.57731,
+      "lat": 39.11218,
+      "lon": -94.57725,
       "bearing": null,
       "speed_mph": 0.1,
       "current_status": "STOPPED_AT",
@@ -119,7 +119,7 @@
       "stop_sequence": 1,
       "occupancy_status": null,
       "occupancy_percentage": null,
-      "timestamp": "1787479093"
+      "timestamp": "1787481011"
     },
     {
       "vehicle_id": "812",
@@ -127,8 +127,8 @@
       "direction_id": 1,
       "start_time": "08:02:00",
       "start_date": "20260823",
-      "lat": 39.112003,
-      "lon": -94.578285,
+      "lat": 39.112053,
+      "lon": -94.57807,
       "bearing": null,
       "speed_mph": 0.1,
       "current_status": "STOPPED_AT",
@@ -136,24 +136,24 @@
       "stop_sequence": 1,
       "occupancy_status": null,
       "occupancy_percentage": null,
-      "timestamp": "1787479094"
+      "timestamp": "1787481012"
     },
     {
       "vehicle_id": "813",
-      "trip_id": "389121",
-      "direction_id": 1,
-      "start_time": "05:15:00",
+      "trip_id": "388644",
+      "direction_id": 0,
+      "start_time": "05:30:00",
       "start_date": "20260823",
-      "lat": 39.11145,
-      "lon": -94.58049,
+      "lat": 39.035786,
+      "lon": -94.584145,
       "bearing": null,
       "speed_mph": 0.0,
       "current_status": "STOPPED_AT",
-      "stop_id": "1620",
+      "stop_id": "1630",
       "stop_sequence": 1,
-      "occupancy_status": null,
-      "occupancy_percentage": null,
-      "timestamp": "1787479094"
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 2,
+      "timestamp": "1787481012"
     }
   ]
 }
