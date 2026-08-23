@@ -7548,5 +7548,35 @@
     "scheduled_time_local": "2026-08-23T16:24:00-05:00",
     "observed_time_local": "2026-08-23T16:18:10-05:00",
     "delay_minutes": -5.8
+  },
+  {
+    "service_date": "20260823",
+    "trip_id": "388712",
+    "direction_id": 0,
+    "stop_id": "1630",
+    "stop_sequence": 1,
+    "scheduled_time_local": "2026-08-23T16:51:00-05:00",
+    "observed_time_local": "2026-08-23T16:44:15-05:00",
+    "delay_minutes": -6.8
+  },
+  {
+    "service_date": "20260823",
+    "trip_id": "389076",
+    "direction_id": 1,
+    "stop_id": "1620",
+    "stop_sequence": 11,
+    "scheduled_time_local": "2026-08-23T16:48:00-05:00",
+    "observed_time_local": "2026-08-23T16:44:15-05:00",
+    "delay_minutes": -3.8
+  },
+  {
+    "service_date": "20260823",
+    "trip_id": "388709",
+    "direction_id": 0,
+    "stop_id": "1619",
+    "stop_sequence": 9,
+    "scheduled_time_local": "2026-08-23T16:40:00-05:00",
+    "observed_time_local": "2026-08-23T16:44:16-05:00",
+    "delay_minutes": 4.3
   }
 ]
