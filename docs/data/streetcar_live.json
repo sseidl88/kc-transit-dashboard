@@ -1,5 +1,74 @@
 {
-  "generated_at": "2026-08-25T09:50:54.985476+00:00",
+  "generated_at": "2026-08-25T10:29:18.476333+00:00",
   "route_id": "601",
-  "vehicles": []
+  "vehicles": [
+    {
+      "vehicle_id": "807",
+      "trip_id": "391691",
+      "direction_id": 1,
+      "start_time": "05:23:00",
+      "start_date": "20260825",
+      "lat": 39.096813,
+      "lon": -94.58311,
+      "bearing": null,
+      "speed_mph": 0.1,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1605",
+      "stop_sequence": 6,
+      "occupancy_status": null,
+      "occupancy_percentage": null,
+      "timestamp": "1787653709"
+    },
+    {
+      "vehicle_id": "809",
+      "trip_id": "391333",
+      "direction_id": 0,
+      "start_time": "05:15:00",
+      "start_date": "20260825",
+      "lat": 39.07861,
+      "lon": -94.5844,
+      "bearing": 15.1,
+      "speed_mph": 18.6,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1811",
+      "stop_sequence": 8,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 42,
+      "timestamp": "1787653713"
+    },
+    {
+      "vehicle_id": "810",
+      "trip_id": "391334",
+      "direction_id": 0,
+      "start_time": "05:30:00",
+      "start_date": "20260825",
+      "lat": 39.036175,
+      "lon": -94.584175,
+      "bearing": 179,
+      "speed_mph": 12.8,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1630",
+      "stop_sequence": 1,
+      "occupancy_status": null,
+      "occupancy_percentage": null,
+      "timestamp": "1787653713"
+    },
+    {
+      "vehicle_id": "813",
+      "trip_id": "391690",
+      "direction_id": 1,
+      "start_time": "05:18:00",
+      "start_date": "20260825",
+      "lat": 39.085052,
+      "lon": -94.58412,
+      "bearing": null,
+      "speed_mph": 0.2,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1608",
+      "stop_sequence": 9,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 17,
+      "timestamp": "1787653711"
+    }
+  ]
 }
