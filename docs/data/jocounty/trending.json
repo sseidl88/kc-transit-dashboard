@@ -1,7 +1,25 @@
 {
-  "as_of": "2026-08-24T11:35:26.630518+00:00",
+  "as_of": "2026-08-25T11:34:24.247321+00:00",
   "up": [],
   "down": [],
-  "added": [],
+  "added": [
+    {
+      "route_id": "76792",
+      "route_short_name": "510",
+      "route_long_name": "K-10 Connector",
+      "route_type": "Bus",
+      "trips_weekday": 34,
+      "trips_saturday": 0,
+      "trips_sunday": 0,
+      "headway_minutes": 30.0,
+      "frequency_tier": "Standard (16\u201330 min)",
+      "span_start": "6:30 AM",
+      "span_end": "6:50 PM",
+      "stop_count": 3,
+      "route_length_miles": 36.6,
+      "avg_speed_mph": 39.9,
+      "has_geometry": true
+    }
+  ],
   "discontinued": []
 }

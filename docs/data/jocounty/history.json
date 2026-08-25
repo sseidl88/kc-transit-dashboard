@@ -114,5 +114,133 @@
         "headway_minutes": 90.0
       }
     ]
+  },
+  {
+    "date": "2026-08-25",
+    "feed_last_modified": "Tue, 25 Aug 2026 10:34:39 GMT",
+    "signature": [
+      [
+        "401",
+        40,
+        52.0
+      ],
+      [
+        "402",
+        12,
+        60.0
+      ],
+      [
+        "403",
+        30,
+        62.0
+      ],
+      [
+        "404",
+        32,
+        60.0
+      ],
+      [
+        "475",
+        30,
+        70.0
+      ],
+      [
+        "487",
+        26,
+        71.0
+      ],
+      [
+        "495",
+        12,
+        60.0
+      ],
+      [
+        "510",
+        34,
+        30.0
+      ],
+      [
+        "520",
+        6,
+        90.0
+      ],
+      [
+        "77793",
+        36,
+        60.0
+      ]
+    ],
+    "routes": [
+      {
+        "route_id": "76802",
+        "route_short_name": "401",
+        "route_long_name": "Metcalf-Plaza",
+        "trips_weekday": 40,
+        "headway_minutes": 52.0
+      },
+      {
+        "route_id": "77793",
+        "route_short_name": "",
+        "route_long_name": "United Drop and Ride",
+        "trips_weekday": 36,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "76792",
+        "route_short_name": "510",
+        "route_long_name": "K-10 Connector",
+        "trips_weekday": 34,
+        "headway_minutes": 30.0
+      },
+      {
+        "route_id": "76796",
+        "route_short_name": "404",
+        "route_long_name": "Metcalf-Downtown",
+        "trips_weekday": 32,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "76797",
+        "route_short_name": "403",
+        "route_long_name": "Antioch-Olathe",
+        "trips_weekday": 30,
+        "headway_minutes": 62.0
+      },
+      {
+        "route_id": "76795",
+        "route_short_name": "475",
+        "route_long_name": "Quivira-75th Street",
+        "trips_weekday": 30,
+        "headway_minutes": 70.0
+      },
+      {
+        "route_id": "76794",
+        "route_short_name": "487",
+        "route_long_name": "87th Street-MTC",
+        "trips_weekday": 26,
+        "headway_minutes": 71.0
+      },
+      {
+        "route_id": "76801",
+        "route_short_name": "402",
+        "route_long_name": "Johnson-Quivira",
+        "trips_weekday": 12,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "76793",
+        "route_short_name": "495",
+        "route_long_name": "95th Street",
+        "trips_weekday": 12,
+        "headway_minutes": 60.0
+      },
+      {
+        "route_id": "76790",
+        "route_short_name": "520",
+        "route_long_name": "Strang Line Express",
+        "trips_weekday": 6,
+        "headway_minutes": 90.0
+      }
+    ]
   }
 ]
