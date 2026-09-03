@@ -1,13 +1,13 @@
 {
   "meta": {
-    "weekday_date_checked": "2026-09-02",
+    "weekday_date_checked": "2026-09-09",
     "saturday_date_checked": "2026-09-05",
     "sunday_date_checked": "2026-09-06",
     "route_count": 10,
     "total_weekday_trips": 258,
     "transfer_hub_count": 10,
     "feed_version": "UTC: 01-Sep-2026 16:24",
-    "generated_at": "2026-09-02T15:02:11.595640+00:00",
+    "generated_at": "2026-09-03T14:56:31.880062+00:00",
     "feed_last_modified": "Wed, 02 Sep 2026 10:39:57 GMT",
     "agency": "RideKC Johnson County Transit"
   },
