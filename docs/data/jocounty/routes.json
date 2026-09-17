@@ -1,13 +1,13 @@
 {
   "meta": {
-    "weekday_date_checked": "2026-09-16",
+    "weekday_date_checked": "2026-09-23",
     "saturday_date_checked": "2026-09-19",
     "sunday_date_checked": "2026-09-20",
-    "route_count": 10,
-    "total_weekday_trips": 258,
-    "transfer_hub_count": 10,
+    "route_count": 9,
+    "total_weekday_trips": 222,
+    "transfer_hub_count": 9,
     "feed_version": "UTC: 09-Sep-2026 20:41",
-    "generated_at": "2026-09-16T15:22:39.713289+00:00",
+    "generated_at": "2026-09-17T15:29:30.474023+00:00",
     "feed_last_modified": "Thu, 10 Sep 2026 10:43:19 GMT",
     "agency": "RideKC Johnson County Transit"
   },
@@ -27,23 +27,6 @@
       "stop_count": 78,
       "route_length_miles": 18.5,
       "avg_speed_mph": 16.8,
-      "has_geometry": true
-    },
-    {
-      "route_id": "77793",
-      "route_short_name": "",
-      "route_long_name": "United Drop and Ride",
-      "route_type": "Bus",
-      "trips_weekday": 36,
-      "trips_saturday": 30,
-      "trips_sunday": 24,
-      "headway_minutes": 60.0,
-      "frequency_tier": "Infrequent (31\u201360 min)",
-      "span_start": "4:05 AM",
-      "span_end": "11:20 PM",
-      "stop_count": 3,
-      "route_length_miles": 42.8,
-      "avg_speed_mph": 42.8,
       "has_geometry": true
     },
     {
