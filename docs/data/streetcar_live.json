@@ -1,5 +1,74 @@
 {
-  "generated_at": "2026-09-22T05:51:00.156928+00:00",
+  "generated_at": "2026-09-22T10:56:58.565314+00:00",
   "route_id": "601",
-  "vehicles": []
+  "vehicles": [
+    {
+      "vehicle_id": "801",
+      "trip_id": "399501",
+      "direction_id": 0,
+      "start_time": "05:30:00",
+      "start_date": "20260922",
+      "lat": 39.106663,
+      "lon": -94.58354,
+      "bearing": 338.2,
+      "speed_mph": 14.7,
+      "current_status": "IN_TRANSIT_TO",
+      "stop_id": "1615",
+      "stop_sequence": 16,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 7,
+      "timestamp": "1790074522"
+    },
+    {
+      "vehicle_id": "804",
+      "trip_id": "399614",
+      "direction_id": 1,
+      "start_time": "05:35:00",
+      "start_date": "20260922",
+      "lat": 39.09694,
+      "lon": -94.58308,
+      "bearing": null,
+      "speed_mph": 0.1,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1605",
+      "stop_sequence": 7,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 40,
+      "timestamp": "1790074522"
+    },
+    {
+      "vehicle_id": "805",
+      "trip_id": "399502",
+      "direction_id": 0,
+      "start_time": "05:45:00",
+      "start_date": "20260922",
+      "lat": 39.064407,
+      "lon": -94.5856,
+      "bearing": 2.5,
+      "speed_mph": 16.1,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1813",
+      "stop_sequence": 6,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 42,
+      "timestamp": "1790074520"
+    },
+    {
+      "vehicle_id": "809",
+      "trip_id": "399615",
+      "direction_id": 1,
+      "start_time": "05:45:00",
+      "start_date": "20260922",
+      "lat": 39.09954,
+      "lon": -94.583336,
+      "bearing": null,
+      "speed_mph": 0.1,
+      "current_status": "STOPPED_AT",
+      "stop_id": "1604",
+      "stop_sequence": 6,
+      "occupancy_status": "MANY_SEATS_AVAILABLE",
+      "occupancy_percentage": 2,
+      "timestamp": "1790074521"
+    }
+  ]
 }
