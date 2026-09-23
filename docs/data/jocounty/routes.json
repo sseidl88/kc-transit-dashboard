@@ -6,9 +6,9 @@
     "route_count": 9,
     "total_weekday_trips": 222,
     "transfer_hub_count": 9,
-    "feed_version": "UTC: 09-Sep-2026 20:41",
-    "generated_at": "2026-09-22T15:28:35.427085+00:00",
-    "feed_last_modified": "Thu, 10 Sep 2026 10:43:19 GMT",
+    "feed_version": "UTC: 22-Sep-2026 19:25",
+    "generated_at": "2026-09-23T15:23:15.311819+00:00",
+    "feed_last_modified": "Wed, 23 Sep 2026 10:51:46 GMT",
     "agency": "RideKC Johnson County Transit"
   },
   "routes": [
@@ -24,7 +24,7 @@
       "frequency_tier": "Infrequent (31\u201360 min)",
       "span_start": "4:51 AM",
       "span_end": "10:54 PM",
-      "stop_count": 78,
+      "stop_count": 76,
       "route_length_miles": 18.5,
       "avg_speed_mph": 16.8,
       "has_geometry": true
@@ -58,7 +58,7 @@
       "frequency_tier": "Infrequent (31\u201360 min)",
       "span_start": "5:00 AM",
       "span_end": "9:45 PM",
-      "stop_count": 53,
+      "stop_count": 51,
       "route_length_miles": 17.8,
       "avg_speed_mph": 21.4,
       "has_geometry": true
@@ -75,7 +75,7 @@
       "frequency_tier": "Limited (60+ min / peak-only)",
       "span_start": "4:54 AM",
       "span_end": "9:14 PM",
-      "stop_count": 165,
+      "stop_count": 162,
       "route_length_miles": 24.1,
       "avg_speed_mph": 17.6,
       "has_geometry": true
@@ -92,7 +92,7 @@
       "frequency_tier": "Limited (60+ min / peak-only)",
       "span_start": "5:00 AM",
       "span_end": "11:31 PM",
-      "stop_count": 123,
+      "stop_count": 119,
       "route_length_miles": 15.3,
       "avg_speed_mph": 15.3,
       "has_geometry": true
@@ -126,7 +126,7 @@
       "frequency_tier": "Infrequent (31\u201360 min)",
       "span_start": "5:20 AM",
       "span_end": "7:14 PM",
-      "stop_count": 122,
+      "stop_count": 120,
       "route_length_miles": 18.2,
       "avg_speed_mph": 16.7,
       "has_geometry": true
@@ -160,7 +160,7 @@
       "frequency_tier": "Limited (60+ min / peak-only)",
       "span_start": "5:15 AM",
       "span_end": "7:01 PM",
-      "stop_count": 17,
+      "stop_count": 16,
       "route_length_miles": 22.7,
       "avg_speed_mph": 29.0,
       "has_geometry": true
