@@ -1,17 +1,7 @@
 {
-  "as_of": "2026-10-03T15:06:33.785466+00:00",
+  "as_of": "2026-10-04T15:43:55.335780+00:00",
   "up": [],
-  "down": [
-    {
-      "route_id": "601",
-      "route_short_name": "STCR",
-      "route_long_name": "KC Streetcar",
-      "metric": "trips_weekday",
-      "before": 230,
-      "after": 229,
-      "pct_change": -0.4
-    }
-  ],
+  "down": [],
   "added": [],
   "discontinued": []
 }
