@@ -12228,5 +12228,15 @@
     "scheduled_time_local": "2026-10-13T07:50:00-05:00",
     "observed_time_local": "2026-10-13T07:52:17-05:00",
     "delay_minutes": 2.3
+  },
+  {
+    "service_date": "20261013",
+    "trip_id": "405770",
+    "direction_id": 0,
+    "stop_id": "1630",
+    "stop_sequence": 1,
+    "scheduled_time_local": "2026-10-13T14:45:00-05:00",
+    "observed_time_local": "2026-10-13T14:43:22-05:00",
+    "delay_minutes": -1.6
   }
 ]
