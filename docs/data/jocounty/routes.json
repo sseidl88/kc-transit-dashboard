@@ -1,13 +1,13 @@
 {
   "meta": {
-    "weekday_date_checked": "2026-11-18",
+    "weekday_date_checked": "2026-11-25",
     "saturday_date_checked": "2027-01-02",
     "sunday_date_checked": "2027-01-03",
     "route_count": 9,
-    "total_weekday_trips": 222,
+    "total_weekday_trips": 204,
     "transfer_hub_count": 9,
     "feed_version": "UTC: 29-Sep-2026 16:07",
-    "generated_at": "2026-11-18T19:19:27.253710+00:00",
+    "generated_at": "2026-11-19T19:26:27.785569+00:00",
     "feed_last_modified": "Wed, 30 Sep 2026 10:56:03 GMT",
     "agency": "RideKC Johnson County Transit"
   },
@@ -27,23 +27,6 @@
       "stop_count": 76,
       "route_length_miles": 18.5,
       "avg_speed_mph": 18.2,
-      "has_geometry": true
-    },
-    {
-      "route_id": "76792",
-      "route_short_name": "510",
-      "route_long_name": "K-10 Connector",
-      "route_type": "Bus",
-      "trips_weekday": 34,
-      "trips_saturday": 0,
-      "trips_sunday": 0,
-      "headway_minutes": 30.0,
-      "frequency_tier": "Standard (16\u201330 min)",
-      "span_start": "6:30 AM",
-      "span_end": "6:50 PM",
-      "stop_count": 3,
-      "route_length_miles": 36.7,
-      "avg_speed_mph": 40.0,
       "has_geometry": true
     },
     {
@@ -112,6 +95,23 @@
       "stop_count": 60,
       "route_length_miles": 10.6,
       "avg_speed_mph": 19.3,
+      "has_geometry": true
+    },
+    {
+      "route_id": "76792",
+      "route_short_name": "510",
+      "route_long_name": "K-10 Connector",
+      "route_type": "Bus",
+      "trips_weekday": 16,
+      "trips_saturday": 0,
+      "trips_sunday": 0,
+      "headway_minutes": 60.0,
+      "frequency_tier": "Infrequent (31\u201360 min)",
+      "span_start": "6:30 AM",
+      "span_end": "6:30 PM",
+      "stop_count": 3,
+      "route_length_miles": 36.7,
+      "avg_speed_mph": 40.0,
       "has_geometry": true
     },
     {
