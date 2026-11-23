@@ -1,12 +1,12 @@
 {
   "weekday_date_checked": "2026-11-25",
   "saturday_date_checked": "2026-11-28",
-  "sunday_date_checked": "2026-11-22",
+  "sunday_date_checked": "2026-11-29",
   "route_count": 30,
   "total_weekday_trips": 1818,
   "transfer_hub_count": 46,
   "feed_version": "October 2026_20261014",
-  "generated_at": "2026-11-22T18:22:42.630159+00:00",
+  "generated_at": "2026-11-23T22:30:26.721862+00:00",
   "feed_last_modified": "Tue, 20 Oct 2026 11:27:30 GMT",
   "agency": "KCATA"
 }
