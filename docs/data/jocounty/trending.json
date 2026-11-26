@@ -1,6 +1,16 @@
 {
-  "as_of": "2026-11-25T20:25:12.685665+00:00",
-  "up": [],
+  "as_of": "2026-11-26T20:03:26.651677+00:00",
+  "up": [
+    {
+      "route_id": "76792",
+      "route_short_name": "510",
+      "route_long_name": "K-10 Connector",
+      "metric": "trips_weekday",
+      "before": 16,
+      "after": 34,
+      "pct_change": 112.5
+    }
+  ],
   "down": [],
   "added": [],
   "discontinued": []
